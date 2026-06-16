@@ -382,186 +382,129 @@ function parseRawSheetData(rows) {
   if (!rows || rows.length === 0) return null;
   
   // Clean empty rows and columns; normalize newlines/carriage-returns to spaces
-  // so that wrapped headers like "Box\nMrp" become "Box Mrp"
   const cleanRows = rows.map(r =>
     (r || []).map(c => String(c || "").replace(/[\r\n]+/g, " ").trim())
   ).filter(r => r.some(Boolean));
   if (cleanRows.length === 0) return null;
 
-  // Compute max column count across ALL rows (merged title rows may have only 1 cell)
-  const maxCols = Math.max(...cleanRows.map(r => r.length));
-
-  const currentProducts = DB.getAll("products");
-  
-  // Define synonyms
-  const nameSynonyms = ["product name", "productname", "name", "product", "item", "item name", "particulars", "particular", "desc", "description", "flavor", "flavour"];
-  const catSynonyms = ["category", "cat", "group", "type", "class"];
-  const mlSynonyms = ["ml", "size", "volume", "qty", "capacity", "ml/box", "pack size"];
-  const ssKeys = ["retail rate", "ss rate", "ssrate", "retailrate", "ss margin rate", "ss price", "ssprice", "retail margin price", "retail margin rate", "ss rate", "retail"];
-  const distKeys = ["dist rate", "distrate", "distributor rate", "distributorrate", "dist price", "distprice", "distributor price", "distributorprice", "dist rate"];
-  const genericKeys = ["rate", "price", "amount", "val", "cost", "value"];
-
-  // Find header row by scoring — check the first 20 rows
+  // Step 1: Find header row by searching for "SR NO" (case-insensitive)
   let headerIdx = -1;
-  let maxScore = -1;
-  
-  for (let i = 0; i < Math.min(cleanRows.length, 20); i++) {
+  for (let i = 0; i < cleanRows.length; i++) {
     const row = cleanRows[i];
-    let hasName = false;
-    let score = 0;
-    
-    row.forEach(cell => {
-      const c = cell.toLowerCase().trim();
-      if (nameSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        hasName = true;
-        score += 5;
-      }
-      if (catSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        score += 3;
-      }
-      if (ssKeys.concat(distKeys, genericKeys).some(s => c === s || c.includes(s) || s.includes(c))) {
-        score += 2;
-      }
-    });
-    
-    if (hasName && score > maxScore) {
-      maxScore = score;
+    const firstCell = String(row[0] || "").toLowerCase().trim();
+    if (firstCell === "sr no" || firstCell === "sr. no" || firstCell === "srno") {
       headerIdx = i;
+      break;
     }
   }
 
-  let nameColIdx = -1;
-  let catColIdx = -1;
-  let mlColIdx = -1;
-  let ssRateColIdx = -1;
-  let distRateColIdx = -1;
-  let genericRateColIdx = -1;
+  // Step 2: If SR NO not found, try the old scoring method for backward compatibility
+  let maxCols = Math.max(...cleanRows.map(r => r.length));
+  
+  if (headerIdx === -1) {
+    // Old method: score-based header detection
+    const nameSynonyms = ["product name", "productname", "name", "product", "item", "item name", "particulars", "particular", "desc", "description", "flavor", "flavour"];
+    const catSynonyms = ["category", "cat", "group", "type", "class"];
+    const mlSynonyms = ["ml", "size", "volume", "qty", "capacity", "ml/box", "pack size"];
+    const ssKeys = ["retail rate", "ss rate", "ssrate", "retailrate", "ss margin rate", "ss price", "ssprice", "retail margin price", "retail margin rate", "ss rate", "retail"];
+    const distKeys = ["dist rate", "distrate", "distributor rate", "distributorrate", "dist price", "distprice", "distributor price", "distributorprice", "dist rate"];
+    const genericKeys = ["rate", "price", "amount", "val", "cost", "value"];
 
-  if (headerIdx !== -1) {
-    const headerRow = cleanRows[headerIdx];
-    headerRow.forEach((cell, j) => {
-      const c = cell.toLowerCase().trim();
-      if (nameColIdx === -1 && nameSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        nameColIdx = j;
-      }
-      if (catColIdx === -1 && catSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        catColIdx = j;
-      }
-      if (mlColIdx === -1 && mlSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        mlColIdx = j;
-      }
-      if (ssRateColIdx === -1 && ssKeys.some(s => c === s || c.includes(s) || s.includes(c))) {
-        ssRateColIdx = j;
-      }
-      if (distRateColIdx === -1 && distKeys.some(s => c === s || c.includes(s) || s.includes(c))) {
-        distRateColIdx = j;
-      }
-      if (genericRateColIdx === -1 && genericKeys.some(s => c === s || c.includes(s) || s.includes(c))) {
-        genericRateColIdx = j;
-      }
-    });
-  }
-
-  // Fallback voting for name, category, and ml columns
-  if (nameColIdx === -1) {
-    const nameVotes = Array(maxCols).fill(0);
-    const catVotes = Array(maxCols).fill(0);
-    const mlVotes = Array(maxCols).fill(0);
-    
-    cleanRows.forEach(row => {
-      row.forEach((cell, j) => {
-        if (j >= maxCols) return;
-        const c = String(cell || "").toLowerCase().trim();
-        if (currentProducts.some(p => p.name.toLowerCase() === c)) {
-          nameVotes[j]++;
+    let maxScore = -1;
+    for (let i = 0; i < Math.min(cleanRows.length, 20); i++) {
+      const row = cleanRows[i];
+      let hasName = false;
+      let score = 0;
+      
+      row.forEach(cell => {
+        const c = cell.toLowerCase().trim();
+        if (nameSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
+          hasName = true;
+          score += 5;
         }
-        const categories = ["big cup", "boat cups", "premium cups", "small cup", "small cone", "medium cone", "big cone", "ice candy", "kulfi", "premium kulfi", "punjabi kulfi", "choco blast", "matka", "sunday", "novelties", "roll cut", "family pack", "party pack", "bulk pack", "catering pack", "sunday tub", "take home tub", "cake"];
-        if (categories.includes(c)) {
-          catVotes[j]++;
+        if (catSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
+          score += 3;
         }
-        if (c.includes("ml") || c.includes("ltr")) {
-          mlVotes[j]++;
+        if (ssKeys.concat(distKeys, genericKeys).some(s => c === s || c.includes(s) || s.includes(c))) {
+          score += 2;
         }
       });
-    });
-    
-    const maxNameVotes = Math.max(...nameVotes);
-    if (maxNameVotes > 0) {
-      nameColIdx = nameVotes.indexOf(maxNameVotes);
-    }
-    const maxCatVotes = Math.max(...catVotes);
-    if (maxCatVotes > 0) {
-      catColIdx = catVotes.indexOf(maxCatVotes);
-    }
-    const maxMlVotes = Math.max(...mlVotes);
-    if (maxMlVotes > 0) {
-      mlColIdx = mlVotes.indexOf(maxMlVotes);
-    }
-  }
-
-  // Fallback voting for rate column
-  if (ssRateColIdx === -1 && distRateColIdx === -1 && genericRateColIdx === -1) {
-    const rateVotes = Array(maxCols).fill(0);
-    cleanRows.forEach(row => {
-      const nameVal = nameColIdx !== -1 ? String(row[nameColIdx] || "").toLowerCase().trim() : "";
-      const p = currentProducts.find(p => p.name.toLowerCase() === nameVal);
-      if (p) {
-        row.forEach((cell, j) => {
-          if (j === nameColIdx || j === catColIdx || j === mlColIdx) return;
-          const val = parseFloat(String(cell).replace(/[^0-9.]/g, ""));
-          if (!isNaN(val) && val > 0) {
-            const isClose = Math.abs(val - p.ssRate) < 100 || Math.abs(val - p.distRate) < 100;
-            if (isClose) {
-              rateVotes[j]++;
-            }
-          }
-        });
+      
+      if (hasName && score > maxScore) {
+        maxScore = score;
+        headerIdx = i;
       }
+    }
+  }
+
+  // If still no header found, allow file to upload with preview
+  if (headerIdx === -1) {
+    console.log("[v0] No SR NO or standard header found - showing preview mode");
+    // Return raw data for preview
+    return cleanRows.map((row, idx) => {
+      const obj = {};
+      row.forEach((cell, j) => {
+        obj[`column_${j}`] = cell;
+      });
+      return obj;
     });
-    const maxRateVotes = Math.max(...rateVotes);
-    if (maxRateVotes > 0) {
-      genericRateColIdx = rateVotes.indexOf(maxRateVotes);
-    }
   }
 
-  // Last resort fallbacks
-  if (nameColIdx === -1) {
-    const firstRow = cleanRows.find(r => r.some(cell => isNaN(parseFloat(cell))));
-    if (firstRow) {
-      nameColIdx = firstRow.findIndex(cell => isNaN(parseFloat(cell)) && String(cell).trim().length > 2);
-    }
-  }
-  if (ssRateColIdx === -1 && distRateColIdx === -1 && genericRateColIdx === -1) {
-    const firstRow = cleanRows.find(r => r.some(cell => !isNaN(parseFloat(cell))));
-    if (firstRow) {
-      genericRateColIdx = firstRow.findIndex(cell => !isNaN(parseFloat(cell)) && parseFloat(cell) > 5);
-    }
-  }
+  // Step 3: Dynamic column mapping based on header row
+  const headerRow = cleanRows[headerIdx];
+  const maxCols = Math.max(...cleanRows.map(r => r.length));
+  
+  let nameColIdx = -1;
+  let catColIdx = -1;
+  let qtyColIdx = -1;
+  let rateColIdx = -1;
+  let amountColIdx = -1;
 
-  if (nameColIdx === -1) return null;
+  // Map columns dynamically based on header
+  headerRow.forEach((cell, j) => {
+    const c = cell.toLowerCase().trim();
+    
+    if (nameColIdx === -1 && (c === "product name" || c === "product" || c === "name" || c === "particulars")) {
+      nameColIdx = j;
+    }
+    if (catColIdx === -1 && (c === "category" || c === "cat" || c === "group" || c === "type")) {
+      catColIdx = j;
+    }
+    if (qtyColIdx === -1 && (c === "quantity" || c === "qty" || c === "volume" || c === "ml")) {
+      qtyColIdx = j;
+    }
+    if (rateColIdx === -1 && (c === "rate" || c === "price" || c === "ss rate" || c === "dist rate" || c === "mrp")) {
+      rateColIdx = j;
+    }
+    if (amountColIdx === -1 && (c === "amount" || c === "total" || c === "value" || c === "cost")) {
+      amountColIdx = j;
+    }
+  });
 
-  // Build headers — use maxCols so columns beyond the first row are included
+  // Build headers dynamically from the header row
   const headers = Array(maxCols).fill("");
   for (let j = 0; j < maxCols; j++) {
     if (j === nameColIdx) headers[j] = "product name";
     else if (j === catColIdx) headers[j] = "category";
-    else if (j === mlColIdx) headers[j] = "ml";
-    else if (j === ssRateColIdx) headers[j] = "ss rate";
-    else if (j === distRateColIdx) headers[j] = "dist rate";
-    else if (j === genericRateColIdx) headers[j] = "rate";
-    else if (headerIdx !== -1 && cleanRows[headerIdx][j]) {
-      headers[j] = String(cleanRows[headerIdx][j]).toLowerCase().trim().replace(/['"]/g, "");
+    else if (j === qtyColIdx) headers[j] = "quantity";
+    else if (j === rateColIdx) headers[j] = "rate";
+    else if (j === amountColIdx) headers[j] = "amount";
+    else if (headerRow[j]) {
+      headers[j] = String(headerRow[j]).toLowerCase().trim().replace(/['"]/g, "");
     } else {
       headers[j] = `column_${j}`;
     }
   }
 
+  // Step 4: Read all rows after header until end
   const parsed = [];
-  const startRowIdx = headerIdx !== -1 ? headerIdx + 1 : 0;
+  const startRowIdx = headerIdx + 1;
 
   for (let i = startRowIdx; i < cleanRows.length; i++) {
     const row = cleanRows[i];
-    if (row.length <= nameColIdx) continue;
+    
+    // Skip completely empty rows
+    if (!row.some(Boolean)) continue;
 
     const rowData = {};
     for (let j = 0; j < headers.length; j++) {
@@ -570,13 +513,14 @@ function parseRawSheetData(rows) {
       }
     }
 
+    // Only include if it has a product name
     const nameVal = rowData["product name"];
-    if (nameVal && nameVal.trim()) {
+    if (nameVal && nameVal.trim() && nameVal.toLowerCase() !== "sr no") {
       parsed.push(rowData);
     }
   }
 
-  return parsed;
+  return parsed.length > 0 ? parsed : null;
 }
 
 function parseUploadedCSV(text) {
