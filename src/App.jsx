@@ -783,7 +783,7 @@ function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
         </div>
       </div>
       <nav style={{flex:1,padding:"10px 10px"}}>
-        {(navMap[role]||[]).map(item=>{
+        {(items[role]||[]).map(item=>{
           const badge=(item.id==="basket"&&cartCount>0)?cartCount:(item.id==="notifications"&&notifCount>0)?notifCount:0;
           return(
             <button key={item.id} onClick={()=>setActive(item.id)} style={{
