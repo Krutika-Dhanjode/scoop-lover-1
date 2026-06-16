@@ -1330,17 +1330,12 @@ function ManageUsers({role,user,refreshKey,setRefreshKey}){
   const retailList=allUsers.filter(u=>u.role==="retailer");
 
   function submit(){
-    if(!form.name||!form.email||!form.password||!form.phone||!form.district){setMsg("All fields required.");return;}
-    if(DB.findOne("users",{email:form.email})){setMsg("Email already exists.");return;}
-    const newUser={
-      name:form.name,role:modal==="add-ss"?"ss":modal==="add-dist"?"distributor":"retailer",
-      email:form.email,password:form.password,phone:form.phone,district:form.district,status:"active",
-      ssId:modal==="add-dist"?(form.ssId||null):null,
-      distId:null,
-      createdAt:Date.now()
-    };
-    DB.insert("users",newUser);
-    pushNotif("👤","New Account Created",`${newUser.name} (${newUser.role}) account created`,"all");
+    if(!form.email||!form.phone){setMsg("Email and phone are required.");return;}
+    const foundUser=allUsers.find(u=>u.email===form.email&&u.phone===form.phone);
+    if(!foundUser){setMsg("No user found with this email and phone combination.");return;}
+    if(modal==="add-ss"&&foundUser.role!=="ss"){setMsg("This user is not registered as a Super Stockist.");return;}
+    if(modal==="add-dist"&&foundUser.role!=="distributor"){setMsg("This user is not registered as a Distributor.");return;}
+    pushNotif("✅","User Added",`${foundUser.name} (${foundUser.role}) has been verified and added`,"all");
     setModal(null);setForm({});setMsg("");
     setRefreshKey(k=>k+1);
   }
@@ -1400,28 +1395,19 @@ function ManageUsers({role,user,refreshKey,setRefreshKey}){
       </Card>
 
       <Modal open={!!modal} onClose={()=>{setModal(null);setMsg("");}} title={modal==="add-ss"?"Add Super Stockist":"Add Distributor"}>
-        {["name","email","password","phone","district"].map(field=>(
+        <p style={{fontSize:12,color:"#666",marginBottom:15}}>Enter the email and phone number used during registration:</p>
+        {["email","phone"].map(field=>(
           <div key={field} style={{marginBottom:13}}>
             <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5,textTransform:"capitalize"}}>{field}</label>
-            <input value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} type={field==="password"?"password":"text"}
+            <input value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} type={field==="email"?"email":"tel"}
               placeholder={`Enter ${field}`} className="modern-input"
               style={{width:"100%",padding:"9px 12px",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
           </div>
         ))}
-        {modal==="add-dist"&&(
-          <div style={{marginBottom:13}}>
-            <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Under Super Stockist</label>
-            <select value={form.ssId||""} onChange={e=>setForm(f=>({...f,ssId:e.target.value}))}
-              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #E0E0E0",borderRadius:8,fontSize:13,background:"white"}}>
-              <option value="">-- Select SS --</option>
-              {ssList.filter(s=>s.status==="active").map(s=><option key={s._id} value={s._id}>{s.name} ({s.district})</option>)}
-            </select>
-          </div>
-        )}
         {msg&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"7px 11px",borderRadius:7,fontSize:12,marginBottom:12}}>{msg}</div>}
         <div style={{display:"flex",gap:9}}>
           <Btn variant="secondary" onClick={()=>{setModal(null);setMsg("");}} style={{flex:1}}>Cancel</Btn>
-          <Btn onClick={submit} style={{flex:2}}>✅ Create Account</Btn>
+          <Btn onClick={submit} style={{flex:2}}>✅ Verify & Add</Btn>
         </div>
       </Modal>
     </div>
