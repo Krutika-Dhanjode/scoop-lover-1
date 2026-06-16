@@ -1744,8 +1744,6 @@ export default function App(){
       </div>
 
       <div className="main-content">
-        {user && (
-          <>
         {/* Desktop top navbar */}
         <div className="desktop-header desktop-only">
           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
@@ -1755,56 +1753,58 @@ export default function App(){
           <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "center", maxWidth: 400 }}>
             <input type="text" placeholder="Search products, orders..." style={{ width: "100%", padding: "8px 14px", borderRadius: 8, border: "1.5px solid #E2E8F0", background: "white", color: "#333", fontSize: 13, outline: "none" }} />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {role !== "manager" && (
-              <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                🛒
-                {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+          {user && (
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              {role !== "manager" && (
+                <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                  🛒
+                  {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+                </button>
+              )}
+              <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                🔔
+                {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
               </button>
-            )}
-            <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
-              🔔
-              {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
-            </button>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 10, borderLeft: "1px solid #E2E8F0" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                <span style={{ fontWeight: 700, color: "#1A237E", fontSize: 13 }}>{user.name}</span>
-                <span style={{ fontSize: 10, color: "#999", textTransform: "capitalize" }}>{role}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 10, borderLeft: "1px solid #E2E8F0" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                  <span style={{ fontWeight: 700, color: "#1A237E", fontSize: 13 }}>{user.name}</span>
+                  <span style={{ fontSize: 10, color: "#999", textTransform: "capitalize" }}>{role}</span>
+                </div>
+                <button onClick={handleLogout} style={{ background: "none", border: "none", color: "#999", fontSize: 14, cursor: "pointer", padding: "4px 8px" }}>⊗</button>
               </div>
-              <button onClick={handleLogout} style={{ background: "none", border: "none", color: "#999", fontSize: 14, cursor: "pointer", padding: "4px 8px" }}>⊗</button>
             </div>
-          </div>
+          )}
         </div>
         
         {/* Mobile top navbar */}
-        <div className="mobile-header">
-          <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginLeft: 12 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 14, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🍦</div>
-            <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5 }}>Scoop Lovers</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <input type="text" placeholder="Search..." style={{ width: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "white", fontSize: 12, outline: "none" }} />
-            <button onClick={() => setActive("dashboard")} title={user.name} style={{ background: "none", border: "none", color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 8px", borderRadius: 6, background: "rgba(255,255,255,0.1)" }}>👤</button>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "white", minWidth: 80 }}>
-              <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</span>
+        {user && (
+          <div className="mobile-header">
+            <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginLeft: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 14, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🍦</div>
+              <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5 }}>Scoop Lovers</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <input type="text" placeholder="Search..." style={{ width: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "white", fontSize: 12, outline: "none" }} />
+              <button onClick={() => setActive("dashboard")} title={user.name} style={{ background: "none", border: "none", color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 8px", borderRadius: 6, background: "rgba(255,255,255,0.1)" }}>👤</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "white", minWidth: 80 }}>
+                <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
+              {role !== "manager" && (
+                <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                  🛒
+                  {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+                </button>
+              )}
+              <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                🔔
+                {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
+              </button>
+              <button onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}} style={{ background: "none", border: "none", color: "white", fontSize: 14, cursor: "pointer", padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.1)", fontWeight: 600 }}>Exit</button>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
-            {role !== "manager" && (
-              <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                🛒
-                {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
-              </button>
-            )}
-            <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
-              🔔
-              {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
-            </button>
-            <button onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}} style={{ background: "none", border: "none", color: "white", fontSize: 14, cursor: "pointer", padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.1)", fontWeight: 600 }}>Exit</button>
-          </div>
-        </div>
-          </>
         )}
 
         {/* Main Content Area */}
