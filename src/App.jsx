@@ -758,9 +758,9 @@ function LoginPage({onLogin}){
 // SIDEBAR
 // ============================================================
 function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
-  const navMap={
-    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"reports",icon:"📊",label:"Reports"},{id:"notifications",icon:"🔔",label:"Notifications"}],
-    ss:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"reports",icon:"📊",label:"Reports"},{id:"notifications",icon:"🔔",label:"Notifications"}],
+  const items={
+    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"notifications",icon:"🔔",label:"Notifications"}],
+    ss:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     distributor:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     retailer:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
   };
@@ -1152,7 +1152,7 @@ function OrdersList({role,user,refreshKey}){
   if(role==="distributor") myOrders=allOrders.filter(o=>o.placedBy===user._id||o.distId===user._id);
   if(role==="retailer") myOrders=allOrders.filter(o=>o.placedBy===user._id);
 
-  const statuses=["All","Draft","Pending","Approved","Processing","Dispatched","Delivered","Cancelled"];
+  const statuses=["All","Draft","Completed"];
   const filtered=filter==="All"?myOrders:myOrders.filter(o=>o.status===filter);
   const sorted=[...filtered].sort((a,b)=>b.createdAt-a.createdAt);
 
@@ -1164,7 +1164,7 @@ function OrdersList({role,user,refreshKey}){
     }
   }
 
-  const nextStatus={Pending:["Approved","Cancelled"],Approved:["Processing","Cancelled"],Processing:["Dispatched"],Dispatched:["Delivered"]};
+  const nextStatus={Draft:["Completed"],Completed:[]};
 
   return(
     <div>
@@ -1590,7 +1590,7 @@ function UploadRateSheet({setRefreshKey}){
           <div style={{fontSize:44,marginBottom:10}}>📂</div>
           <p style={{margin:0,fontWeight:700,color:"#1A237E",fontSize:14}}>Drop Excel (.xlsx, .xls) or CSV file here or click to browse</p>
           <p style={{margin:"6px 0 0",color:"#AAA",fontSize:12}}>Uploading as: <strong>{uploadType === "ss" ? "Super Stockist (SS) Rates" : "Distributor Rates"}</strong></p>
-          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.txt" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
+          <input ref={fileRef} type="file" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
         </div>
       </Card>
 
@@ -1640,52 +1640,6 @@ e.g. Big Cup, Vanilla, 171.02`
           </div>
         </Card>
       )}
-    </div>
-  );
-}
-
-// ============================================================
-// REPORTS
-// ============================================================
-function Reports({role,user}){
-  const orders=DB.getAll("orders");
-  const myOrders=role==="manager"?orders:orders.filter(o=>o.placedBy===user._id);
-  const revenue=myOrders.reduce((s,o)=>s+o.grandTotal,0);
-
-  const catSales={};
-  myOrders.forEach(o=>o.items.forEach(item=>{catSales[item.category]=(catSales[item.category]||0)+item.amount;}));
-  const topCats=Object.entries(catSales).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-  return(
-    <div>
-      <h2 style={{margin:"0 0 20px",fontSize:20,fontWeight:800,color:"#1A237E"}}>📊 Reports & Analytics</h2>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:14,marginBottom:22}}>
-        <StatCard icon="💰" label="Total Revenue" value={"₹"+revenue.toFixed(0)} color="#2E7D32"/>
-        <StatCard icon="📋" label="Total Orders" value={myOrders.length} color="#1565C0"/>
-        <StatCard icon="✅" label="Delivered" value={myOrders.filter(o=>o.status==="Delivered").length} color="#00897B"/>
-        <StatCard icon="⏳" label="Pending" value={myOrders.filter(o=>o.status==="Pending").length} color="#F57F17"/>
-      </div>
-      {topCats.length>0&&(
-        <Card>
-          <h3 style={{margin:"0 0 18px",fontSize:15,fontWeight:700,color:"#1A237E"}}>Sales by Category</h3>
-          {topCats.map(([cat,amt])=>{
-            const pct=revenue>0?(amt/revenue)*100:0;
-            const color=CAT_COLOR[cat]||"#4FC3F7";
-            return(
-              <div key={cat} style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{fontSize:12,fontWeight:700}}>{CAT_EMOJI[cat]||"🍦"} {cat}</span>
-                  <span style={{fontSize:12,fontWeight:800,color:"#1A237E"}}>₹{amt.toFixed(0)}</span>
-                </div>
-                <div style={{height:7,background:"#F0F0F0",borderRadius:4,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:pct+"%",background:color,borderRadius:4}}/>
-                </div>
-              </div>
-            );
-          })}
-        </Card>
-      )}
-      {myOrders.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:"#CCC"}}><div style={{fontSize:42}}>📊</div><p>No data yet</p></div>}
     </div>
   );
 }
@@ -1741,7 +1695,7 @@ export default function App(){
       distId:u.role==="distributor"?u._id:null,
       district:u.district||"Nagpur",
       items:cartItems.map(i=>({...i})),
-      grandTotal,status:"Pending",createdAt:Date.now()
+      grandTotal,status:"Draft",createdAt:Date.now()
     });
     pushNotif("✅","Order Placed",`Order ${order.id} placed for ₹${grandTotal.toFixed(2)} by ${u.name}`,u._id);
     if(parentSS) pushNotif("📦","New Order Received",`${u.name} placed order ${order.id} worth ₹${grandTotal.toFixed(2)}`,parentSS._id);
@@ -1760,7 +1714,6 @@ export default function App(){
     orders:<OrdersList role={role} user={user} refreshKey={refreshKey}/>,
     users:<ManageUsers role={role} user={user} refreshKey={refreshKey} setRefreshKey={setRefreshKey}/>,
     upload:<UploadRateSheet setRefreshKey={setRefreshKey}/>,
-    reports:<Reports role={role} user={user}/>,
     notifications:<Notifications user={user} refreshKey={refreshKey}/>,
   };
 
@@ -1791,14 +1744,53 @@ export default function App(){
       </div>
 
       <div className="main-content">
+        {user && (
+          <>
+        {/* Desktop top navbar */}
+        <div className="desktop-header desktop-only">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 16, background: "#1A237E", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🍦</div>
+            <span style={{ fontWeight: 800, fontSize: 16, color: "#1A237E" }}>Scoop Lovers</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "center", maxWidth: 400 }}>
+            <input type="text" placeholder="Search products, orders..." style={{ width: "100%", padding: "8px 14px", borderRadius: 8, border: "1.5px solid #E2E8F0", background: "white", color: "#333", fontSize: 13, outline: "none" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {role !== "manager" && (
+              <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                🛒
+                {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+              </button>
+            )}
+            <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+              🔔
+              {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 10, borderLeft: "1px solid #E2E8F0" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                <span style={{ fontWeight: 700, color: "#1A237E", fontSize: 13 }}>{user.name}</span>
+                <span style={{ fontSize: 10, color: "#999", textTransform: "capitalize" }}>{role}</span>
+              </div>
+              <button onClick={handleLogout} style={{ background: "none", border: "none", color: "#999", fontSize: 14, cursor: "pointer", padding: "4px 8px" }}>⊗</button>
+            </div>
+          </div>
+        </div>
+        
         {/* Mobile top navbar */}
         <div className="mobile-header">
           <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginLeft: 12 }}>
             <div style={{ width: 28, height: 28, borderRadius: 14, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🍦</div>
             <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5 }}>Scoop Lovers</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <input type="text" placeholder="Search..." style={{ width: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "white", fontSize: 12, outline: "none" }} />
+            <button onClick={() => setActive("dashboard")} title={user.name} style={{ background: "none", border: "none", color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 8px", borderRadius: 6, background: "rgba(255,255,255,0.1)" }}>👤</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "white", minWidth: 80 }}>
+              <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
             {role !== "manager" && (
               <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
                 🛒
@@ -1809,8 +1801,11 @@ export default function App(){
               🔔
               {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
             </button>
+            <button onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}} style={{ background: "none", border: "none", color: "white", fontSize: 14, cursor: "pointer", padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.1)", fontWeight: 600 }}>Exit</button>
           </div>
         </div>
+          </>
+        )}
 
         {/* Main Content Area */}
         <div style={{ flex: 1, overflow: "auto" }}>

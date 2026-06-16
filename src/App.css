@@ -61,12 +61,33 @@ button, input, select, textarea {
   }
 }
 
+/* Desktop Top Navbar */
+.desktop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: white;
+  border-bottom: 1.5px solid #E2E8F0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .desktop-header {
+    display: none !important;
+  }
+}
+
 /* Mobile Top Navbar */
 .mobile-header {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 12px 12px;
   background: linear-gradient(135deg, #0A1648 0%, #1A237E 100%);
   color: white;
   position: sticky;
@@ -74,6 +95,8 @@ button, input, select, textarea {
   z-index: 1000;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 768px) {
@@ -262,6 +285,14 @@ button, input, select, textarea {
 .modern-input:focus {
   border-color: #1A237E !important;
   box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.15) !important;
+}
+
+/* Navbar search input */
+.mobile-header input[type="text"] {
+  transition: all 0.2s ease !important;
+}
+.mobile-header input[type="text"]::placeholder {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Custom scrollbars for modal and tables */
