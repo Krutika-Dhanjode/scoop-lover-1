@@ -452,7 +452,6 @@ function parseRawSheetData(rows) {
 
   // Step 3: Dynamic column mapping based on header row
   const headerRow = cleanRows[headerIdx];
-  const maxCols = Math.max(...cleanRows.map(r => r.length));
   
   let nameColIdx = -1;
   let catColIdx = -1;
