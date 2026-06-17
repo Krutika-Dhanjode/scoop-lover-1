@@ -1785,7 +1785,7 @@ export default function App(){
   return(
     <div className="app-container">
       {/* Desktop Sidebar */}
-      <div className="desktop-only" style={{ width: 160, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
+      <div className="desktop-only" style={{ width: 100, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
         <Sidebar role={role} user={user} active={active} setActive={setActive} onLogout={handleLogout} cartCount={cart.length} notifCount={notifCount}/>
       </div>
       
