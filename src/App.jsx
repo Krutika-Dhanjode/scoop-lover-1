@@ -947,7 +947,7 @@ function ProductCatalog({role,user,cart,setCart}){
           <option value="All">All Categories ({products.length})</option>
           {cats.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
-        {cart.length>0&&<div style={{background:"linear-gradient(135deg,#FF6B9D,#FF4081)",color:"white",padding:"6px 14px",borderRadius:20,fontSize:12,fontWeight:800}}>🛒 {cart.length} in basket</div>}
+        {cart.length>0&&<div onClick={()=>setActive("basket")} style={{background:"linear-gradient(135deg,#FF6B9D,#FF4081)",color:"white",padding:"6px 14px",borderRadius:20,fontSize:12,fontWeight:800,cursor:"pointer"}}>🛒 {cart.length} in basket</div>}
       </div>
 
       {Object.entries(grouped).map(([cat,items])=>(
