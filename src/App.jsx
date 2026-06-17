@@ -711,7 +711,7 @@ function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
   const roleLabel={manager:"Manager",ss:"Super Stockist",distributor:"Distributor",retailer:"Retailer"};
 
   return(
-    <div style={{width:"100%",minHeight:"100vh",flexShrink:0,background:"linear-gradient(180deg,#0A1648 0%,#1A237E 50%,#283593 100%)",display:"flex",flexDirection:"column",fontFamily:"'Poppins','Segoe UI',sans-serif"}}>
+    <div style={{width:"100%",height:"100vh",flexShrink:0,background:"linear-gradient(180deg,#0A1648 0%,#1A237E 50%,#283593 100%)",display:"flex",flexDirection:"column",fontFamily:"'Poppins','Segoe UI',sans-serif",overflow:"hidden",position:"fixed",left:0,top:0,zIndex:500}}>
       <div style={{padding:"22px 18px 14px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
           <div style={{width:38,height:38,borderRadius:19,background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🍦</div>
@@ -725,7 +725,7 @@ function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
           {user.district&&user.district!=="All"&&<div style={{color:"rgba(255,255,255,0.5)",fontSize:10,marginTop:3}}>📍 {user.district}</div>}
         </div>
       </div>
-      <nav style={{flex:1,padding:"10px 10px"}}>
+      <nav style={{flex:1,padding:"10px 10px",overflowY:"auto"}}>
         {(items[role]||[]).map(item=>{
           const badge=(item.id==="basket"&&cartCount>0)?cartCount:(item.id==="notifications"&&notifCount>0)?notifCount:0;
           return(
@@ -1649,9 +1649,12 @@ export default function App(){
   return(
     <div className="app-container">
       {/* Desktop Sidebar */}
-      <div className="desktop-only" style={{ width: 216, minHeight: "100vh", flexShrink: 0 }}>
+      <div className="desktop-only" style={{ width: 216, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
         <Sidebar role={role} user={user} active={active} setActive={setActive} onLogout={handleLogout} cartCount={cart.length} notifCount={notifCount}/>
       </div>
+      
+      {/* Main content offset for fixed sidebar */}
+      <div style={{ marginLeft: "216px", width: "calc(100% - 216px)", display: "flex", flexDirection: "column" }}>
       
       {/* Mobile Sidebar Overlay */}
       <div className={`mobile-sidebar-overlay mobile-only ${isMobileMenuOpen ? "open" : ""}`} onClick={() => setIsMobileMenuOpen(false)} />
@@ -1714,24 +1717,23 @@ export default function App(){
               <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5 }}>Scoop Lovers</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <input type="text" placeholder="Search..." style={{ width: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "white", fontSize: 12, outline: "none" }} />
-              <button onClick={() => setActive("dashboard")} title={user.name} style={{ background: "none", border: "none", color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 8px", borderRadius: 6, background: "rgba(255,255,255,0.1)" }}>👤</button>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "white", minWidth: 80 }}>
+              <button onClick={() => setActive("dashboard")} title={user.name} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 8px", borderRadius: 6 }}>👤</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#1A237E", minWidth: 80 }}>
                 <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</span>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
               {role !== "manager" && (
-                <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
                   🛒
                   {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
                 </button>
               )}
-              <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+              <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
                 🔔
                 {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
               </button>
-              <button onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}} style={{ background: "none", border: "none", color: "white", fontSize: 14, cursor: "pointer", padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.1)", fontWeight: 600 }}>Exit</button>
+              <button onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}} style={{ background: "none", border: "none", color: "#FF6B9D", fontSize: 14, cursor: "pointer", padding: "4px 8px", borderRadius: 4, fontWeight: 600 }}>Exit</button>
             </div>
           </div>
         )}
@@ -1742,6 +1744,7 @@ export default function App(){
             {pages[active]||pages.dashboard}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
