@@ -788,7 +788,7 @@ function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
       <div style={{padding:"22px 18px 14px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
           <div style={{width:38,height:38,borderRadius:19,background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🍦</div>
-          <div><div style={{color:"white",fontWeight:800,fontSize:13}}>Scoop Lovers</div><div style={{color:"rgba(255,255,255,0.5)",fontSize:9}}>OMS v2.0</div></div>
+          <div><div style={{color:"white",fontWeight:800,fontSize:13}}>Scoop Lovers</div></div>
         </div>
       </div>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
