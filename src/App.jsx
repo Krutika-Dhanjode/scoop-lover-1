@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import "./App.css";
 
 // ============================================================
@@ -1401,10 +1402,17 @@ function UploadRateSheet({setRefreshKey}){
         setPreview([]);
         return;
       }
-      const updated=parsed.slice(0,10); // preview first 10
+      const updated=parsed; // show ALL rows, not just 10
       setPreview(updated);
       setStatus(`✅ Parsed ${parsed.length} rows. Review below then click Apply.`);
       window._parsedRates=parsed;
+      // Store metadata about the rate sheet
+      window._rateSheetMetadata={
+        type:uploadType,
+        fileName:file.name,
+        uploadedAt:new Date().toLocaleString(),
+        totalRows:parsed.length
+      };
     };
 
     if (isXlsx) {
@@ -1552,12 +1560,22 @@ e.g. Big Cup, Vanilla, 171.02`
       {preview.length>0&&(
         <Card style={{marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:"#1A237E"}}>Preview (first 10 rows)</h3>
+            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:"#1A237E"}}>Preview - All {preview.length} rows loaded</h3>
             <Btn onClick={applyRates}>✅ Apply Rates</Btn>
           </div>
-          <div style={{overflowX:"auto"}}>
+          {window._rateSheetMetadata&&(
+            <div style={{background:"#E8F5E9",borderRadius:8,padding:"10px 12px",marginBottom:12,fontSize:11}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
+                <div><strong style={{color:"#1B5E20"}}>File:</strong> {window._rateSheetMetadata.fileName}</div>
+                <div><strong style={{color:"#1B5E20"}}>Type:</strong> {window._rateSheetMetadata.type === "ss" ? "Super Stockist (SS)" : "Distributor"} Rates</div>
+                <div><strong style={{color:"#1B5E20"}}>Uploaded:</strong> {window._rateSheetMetadata.uploadedAt}</div>
+                <div><strong style={{color:"#1B5E20"}}>Rows:</strong> {window._rateSheetMetadata.totalRows}</div>
+              </div>
+            </div>
+          )}
+          <div style={{overflowX:"auto",maxHeight:"400px",overflowY:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-              <thead><tr style={{background:"#F0F0F0"}}>
+              <thead style={{position:"sticky",top:0}}><tr style={{background:"#F0F0F0"}}>
                 {Object.keys(preview[0]).slice(0,8).map(h=><th key={h} style={{padding:"7px 9px",textAlign:"left",fontWeight:700,color:"#555"}}>{h}</th>)}
               </tr></thead>
               <tbody>{preview.map((row,i)=>(
@@ -1614,18 +1632,64 @@ export default function App(){
   function handleLogin(u){setUser(u);setActive("dashboard");}
   function handleLogout(){setUser(null);setCart([]);setActive("dashboard");}
 
+  function generateOrderExcel(orderId,cartItems,role){
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet([]);
+    const data = [];
+    
+    // Add header info
+    data.push([`Order #${orderId}`]);
+    data.push([`Generated: ${new Date().toLocaleString()}`]);
+    data.push([]);
+    
+    // Add column headers
+    data.push(["SR NO","Product Name","Category","ML","Cartons","Unit/Crate","Pieces","Rate","Amount"]);
+    
+    // Add items with formulas
+    cartItems.forEach((item,idx)=>{
+      const rate = role==="distributor"||role==="retailer"?item.distRate:item.ssRate;
+      // Row data: SR, Product, Cat, ML, Cartons, Unit, Pieces (formula), Rate, Amount (formula)
+      data.push([
+        idx+1,
+        item.name,
+        item.category,
+        item.ml,
+        item.cartons,
+        item.unitInCrate,
+        `=E${data.length+1}*F${data.length+1}`, // Pieces = Cartons * Unit/Crate
+        rate,
+        `=G${data.length+1}*H${data.length+1}` // Amount = Pieces * Rate
+      ]);
+    });
+    
+    data.push([]);
+    data.push(["","","","","TOTAL:","",`=SUM(G${data.length+1-cartItems.length}:G${data.length})`,`GRAND TOTAL:`,`=SUM(I${data.length+1-cartItems.length}:I${data.length})`]);
+    
+    // Convert to sheet
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:8},{wch:20},{wch:15},{wch:8},{wch:10},{wch:12},{wch:10},{wch:12},{wch:12}];
+    
+    XLSX.utils.book_append_sheet(workbook, ws, "Order");
+    XLSX.writeFile(workbook, `Order_${orderId}.xlsx`);
+  }
+
   function confirmOrder(cartItems,grandTotal){
     const u=user;
     const parentSS=u.role==="distributor"?DB.findOne("users",{_id:u.ssId}):u.role==="ss"?u:null;
+    const orderId = genOrderId();
     const order=DB.insert("orders",{
-      id:genOrderId(),
+      id:orderId,
       placedBy:u._id, placedByName:u.name, role:u.role,
       ssId:u.role==="ss"?u._id:(u.ssId||null),
       distId:u.role==="distributor"?u._id:null,
       district:u.district||"Nagpur",
       items:cartItems.map(i=>({...i})),
-      grandTotal,status:"Draft",createdAt:Date.now()
+      grandTotal,status:"Draft",createdAt:Date.now(),
+      excelFileName:`Order_${orderId}.xlsx`, // Track the Excel filename
+      rateSheetUsed:window._rateSheetMetadata // Store which rate sheet was used
     });
+    // Generate Excel file with formulas
+    generateOrderExcel(orderId,cartItems,u.role);
     pushNotif("✅","Order Placed",`Order ${order.id} placed for ₹${grandTotal.toFixed(2)} by ${u.name}`,u._id);
     if(parentSS) pushNotif("📦","New Order Received",`${u.name} placed order ${order.id} worth ₹${grandTotal.toFixed(2)}`,parentSS._id);
     setCart([]);setActive("orders");setRefreshKey(k=>k+1);
