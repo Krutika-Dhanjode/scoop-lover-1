@@ -941,9 +941,9 @@ function ProductCatalog({role,user,cart,setCart}){
     <div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:18,alignItems:"center"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search products..."
-          style={{flex:1,minWidth:180,padding:"9px 13px",border:"1.5px solid #E0E0E0",borderRadius:9,fontSize:13,outline:"none"}}/>
+          style={{flex:1,minWidth:180,padding:"9px 13px",border:"1.5px solid #E2E8F0",borderRadius:9,fontSize:13,outline:"none",background:"white",color:"#333"}}/>
         <select value={catFilter} onChange={e=>setCatFilter(e.target.value)}
-          style={{padding:"9px 13px",border:"1.5px solid #E0E0E0",borderRadius:9,fontSize:13,background:"white"}}>
+          style={{padding:"9px 13px",border:"1.5px solid #E2E8F0",borderRadius:9,fontSize:13,background:"white",color:"#333",cursor:"pointer"}}>
           <option value="All">All Categories ({products.length})</option>
           {cats.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
