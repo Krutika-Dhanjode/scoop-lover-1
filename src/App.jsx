@@ -999,10 +999,10 @@ function ProductCatalog({role,user,cart,setCart}){
             <div style={{marginBottom:14}}>
               <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:6}}>Number of Cartons</label>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <button onClick={()=>setQty(Math.max(1,qty-1))} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #DDD",background:"white",cursor:"pointer",fontSize:18}}>−</button>
+                <button onClick={()=>setQty(Math.max(1,qty-1))} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:18,fontWeight:800,color:"#000"}}>−</button>
                 <input type="number" min="1" value={qty} onChange={e=>setQty(Math.max(1,parseInt(e.target.value)||1))}
                   style={{flex:1,textAlign:"center",padding:"8px",border:"1.5px solid #DDD",borderRadius:9,fontSize:15,fontWeight:800}}/>
-                <button onClick={()=>setQty(qty+1)} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #DDD",background:"white",cursor:"pointer",fontSize:18}}>+</button>
+                <button onClick={()=>setQty(qty+1)} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:18,fontWeight:800,color:"#000"}}>+</button>
               </div>
             </div>
             <div style={{background:"#E8F5E9",borderRadius:10,padding:12,marginBottom:18,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
@@ -1077,9 +1077,9 @@ function Basket({role,user,cart,setCart,onConfirm}){
                     <td style={{padding:"9px 10px",color:"#888"}}>{item.ml}</td>
                     <td style={{padding:"9px 10px"}}>
                       <div style={{display:"flex",alignItems:"center",gap:4}}>
-                        <button onClick={()=>updateQty(item.productId,Math.max(1,item.cartons-1))} style={{width:20,height:20,borderRadius:10,border:"1px solid #DDD",background:"white",cursor:"pointer",fontSize:13,lineHeight:1}}>−</button>
+                        <button onClick={()=>updateQty(item.productId,Math.max(1,item.cartons-1))} style={{width:20,height:20,borderRadius:10,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:14,lineHeight:1,fontWeight:800,color:"#000"}}>−</button>
                         <span style={{width:26,textAlign:"center",fontWeight:800}}>{item.cartons}</span>
-                        <button onClick={()=>updateQty(item.productId,item.cartons+1)} style={{width:20,height:20,borderRadius:10,border:"1px solid #DDD",background:"white",cursor:"pointer",fontSize:13,lineHeight:1}}>+</button>
+                        <button onClick={()=>updateQty(item.productId,item.cartons+1)} style={{width:20,height:20,borderRadius:10,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:14,lineHeight:1,fontWeight:800,color:"#000"}}>+</button>
                       </div>
                     </td>
                     <td style={{padding:"9px 10px",color:"#555"}}>{item.cartons*item.unitInCrate}</td>
@@ -1115,9 +1115,9 @@ function Basket({role,user,cart,setCart,onConfirm}){
                 <div className="mobile-order-item-detail-row">
                   <span className="mobile-order-item-label">Cartons</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    <button onClick={() => updateQty(item.productId, Math.max(1, item.cartons - 1))} style={{ width: 24, height: 24, borderRadius: 12, border: "1px solid #DDD", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    <button onClick={() => updateQty(item.productId, Math.max(1, item.cartons - 1))} style={{ width: 24, height: 24, borderRadius: 12, border: "1.5px solid #333", background: "white", cursor: "pointer", fontSize: 14, fontWeight: 800, color: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                     <span style={{ minWidth: 20, textAlign: "center", fontWeight: 800, fontSize: 13 }}>{item.cartons}</span>
-                    <button onClick={() => updateQty(item.productId, item.cartons + 1)} style={{ width: 24, height: 24, borderRadius: 12, border: "1px solid #DDD", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    <button onClick={() => updateQty(item.productId, item.cartons + 1)} style={{ width: 24, height: 24, borderRadius: 12, border: "1.5px solid #333", background: "white", cursor: "pointer", fontSize: 14, fontWeight: 800, color: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                   </div>
                 </div>
                 <div className="mobile-order-item-detail-row">
@@ -1785,7 +1785,7 @@ export default function App(){
   return(
     <div className="app-container">
       {/* Desktop Sidebar */}
-      <div className="desktop-only" style={{ width: 280, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
+      <div className="desktop-only" style={{ width: 160, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
         <Sidebar role={role} user={user} active={active} setActive={setActive} onLogout={handleLogout} cartCount={cart.length} notifCount={notifCount}/>
       </div>
       

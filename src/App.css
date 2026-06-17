@@ -35,8 +35,8 @@ button, input, select, textarea {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  margin-left: 280px;
-  width: calc(100% - 280px);
+  margin-left: 160px;
+  width: 100%;
   min-height: 100vh;
 }
 
