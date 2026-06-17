@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import "./App.css";
 
 // ============================================================
@@ -382,186 +383,128 @@ function parseRawSheetData(rows) {
   if (!rows || rows.length === 0) return null;
   
   // Clean empty rows and columns; normalize newlines/carriage-returns to spaces
-  // so that wrapped headers like "Box\nMrp" become "Box Mrp"
   const cleanRows = rows.map(r =>
     (r || []).map(c => String(c || "").replace(/[\r\n]+/g, " ").trim())
   ).filter(r => r.some(Boolean));
   if (cleanRows.length === 0) return null;
 
-  // Compute max column count across ALL rows (merged title rows may have only 1 cell)
-  const maxCols = Math.max(...cleanRows.map(r => r.length));
-
-  const currentProducts = DB.getAll("products");
-  
-  // Define synonyms
-  const nameSynonyms = ["product name", "productname", "name", "product", "item", "item name", "particulars", "particular", "desc", "description", "flavor", "flavour"];
-  const catSynonyms = ["category", "cat", "group", "type", "class"];
-  const mlSynonyms = ["ml", "size", "volume", "qty", "capacity", "ml/box", "pack size"];
-  const ssKeys = ["retail rate", "ss rate", "ssrate", "retailrate", "ss margin rate", "ss price", "ssprice", "retail margin price", "retail margin rate", "ss rate", "retail"];
-  const distKeys = ["dist rate", "distrate", "distributor rate", "distributorrate", "dist price", "distprice", "distributor price", "distributorprice", "dist rate"];
-  const genericKeys = ["rate", "price", "amount", "val", "cost", "value"];
-
-  // Find header row by scoring — check the first 20 rows
+  // Step 1: Find header row by searching for "SR NO" (case-insensitive)
   let headerIdx = -1;
-  let maxScore = -1;
-  
-  for (let i = 0; i < Math.min(cleanRows.length, 20); i++) {
+  for (let i = 0; i < cleanRows.length; i++) {
     const row = cleanRows[i];
-    let hasName = false;
-    let score = 0;
-    
-    row.forEach(cell => {
-      const c = cell.toLowerCase().trim();
-      if (nameSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        hasName = true;
-        score += 5;
-      }
-      if (catSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        score += 3;
-      }
-      if (ssKeys.concat(distKeys, genericKeys).some(s => c === s || c.includes(s) || s.includes(c))) {
-        score += 2;
-      }
-    });
-    
-    if (hasName && score > maxScore) {
-      maxScore = score;
+    const firstCell = String(row[0] || "").toLowerCase().trim();
+    if (firstCell === "sr no" || firstCell === "sr. no" || firstCell === "srno") {
       headerIdx = i;
+      break;
     }
   }
 
-  let nameColIdx = -1;
-  let catColIdx = -1;
-  let mlColIdx = -1;
-  let ssRateColIdx = -1;
-  let distRateColIdx = -1;
-  let genericRateColIdx = -1;
+  // Step 2: If SR NO not found, try the old scoring method for backward compatibility
+  let maxCols = Math.max(...cleanRows.map(r => r.length));
+  
+  if (headerIdx === -1) {
+    // Old method: score-based header detection
+    const nameSynonyms = ["product name", "productname", "name", "product", "item", "item name", "particulars", "particular", "desc", "description", "flavor", "flavour"];
+    const catSynonyms = ["category", "cat", "group", "type", "class"];
+    const mlSynonyms = ["ml", "size", "volume", "qty", "capacity", "ml/box", "pack size"];
+    const ssKeys = ["retail rate", "ss rate", "ssrate", "retailrate", "ss margin rate", "ss price", "ssprice", "retail margin price", "retail margin rate", "ss rate", "retail"];
+    const distKeys = ["dist rate", "distrate", "distributor rate", "distributorrate", "dist price", "distprice", "distributor price", "distributorprice", "dist rate"];
+    const genericKeys = ["rate", "price", "amount", "val", "cost", "value"];
 
-  if (headerIdx !== -1) {
-    const headerRow = cleanRows[headerIdx];
-    headerRow.forEach((cell, j) => {
-      const c = cell.toLowerCase().trim();
-      if (nameColIdx === -1 && nameSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        nameColIdx = j;
-      }
-      if (catColIdx === -1 && catSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        catColIdx = j;
-      }
-      if (mlColIdx === -1 && mlSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
-        mlColIdx = j;
-      }
-      if (ssRateColIdx === -1 && ssKeys.some(s => c === s || c.includes(s) || s.includes(c))) {
-        ssRateColIdx = j;
-      }
-      if (distRateColIdx === -1 && distKeys.some(s => c === s || c.includes(s) || s.includes(c))) {
-        distRateColIdx = j;
-      }
-      if (genericRateColIdx === -1 && genericKeys.some(s => c === s || c.includes(s) || s.includes(c))) {
-        genericRateColIdx = j;
-      }
-    });
-  }
-
-  // Fallback voting for name, category, and ml columns
-  if (nameColIdx === -1) {
-    const nameVotes = Array(maxCols).fill(0);
-    const catVotes = Array(maxCols).fill(0);
-    const mlVotes = Array(maxCols).fill(0);
-    
-    cleanRows.forEach(row => {
-      row.forEach((cell, j) => {
-        if (j >= maxCols) return;
-        const c = String(cell || "").toLowerCase().trim();
-        if (currentProducts.some(p => p.name.toLowerCase() === c)) {
-          nameVotes[j]++;
+    let maxScore = -1;
+    for (let i = 0; i < Math.min(cleanRows.length, 20); i++) {
+      const row = cleanRows[i];
+      let hasName = false;
+      let score = 0;
+      
+      row.forEach(cell => {
+        const c = cell.toLowerCase().trim();
+        if (nameSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
+          hasName = true;
+          score += 5;
         }
-        const categories = ["big cup", "boat cups", "premium cups", "small cup", "small cone", "medium cone", "big cone", "ice candy", "kulfi", "premium kulfi", "punjabi kulfi", "choco blast", "matka", "sunday", "novelties", "roll cut", "family pack", "party pack", "bulk pack", "catering pack", "sunday tub", "take home tub", "cake"];
-        if (categories.includes(c)) {
-          catVotes[j]++;
+        if (catSynonyms.some(s => c === s || c.includes(s) || s.includes(c))) {
+          score += 3;
         }
-        if (c.includes("ml") || c.includes("ltr")) {
-          mlVotes[j]++;
+        if (ssKeys.concat(distKeys, genericKeys).some(s => c === s || c.includes(s) || s.includes(c))) {
+          score += 2;
         }
       });
-    });
-    
-    const maxNameVotes = Math.max(...nameVotes);
-    if (maxNameVotes > 0) {
-      nameColIdx = nameVotes.indexOf(maxNameVotes);
-    }
-    const maxCatVotes = Math.max(...catVotes);
-    if (maxCatVotes > 0) {
-      catColIdx = catVotes.indexOf(maxCatVotes);
-    }
-    const maxMlVotes = Math.max(...mlVotes);
-    if (maxMlVotes > 0) {
-      mlColIdx = mlVotes.indexOf(maxMlVotes);
-    }
-  }
-
-  // Fallback voting for rate column
-  if (ssRateColIdx === -1 && distRateColIdx === -1 && genericRateColIdx === -1) {
-    const rateVotes = Array(maxCols).fill(0);
-    cleanRows.forEach(row => {
-      const nameVal = nameColIdx !== -1 ? String(row[nameColIdx] || "").toLowerCase().trim() : "";
-      const p = currentProducts.find(p => p.name.toLowerCase() === nameVal);
-      if (p) {
-        row.forEach((cell, j) => {
-          if (j === nameColIdx || j === catColIdx || j === mlColIdx) return;
-          const val = parseFloat(String(cell).replace(/[^0-9.]/g, ""));
-          if (!isNaN(val) && val > 0) {
-            const isClose = Math.abs(val - p.ssRate) < 100 || Math.abs(val - p.distRate) < 100;
-            if (isClose) {
-              rateVotes[j]++;
-            }
-          }
-        });
+      
+      if (hasName && score > maxScore) {
+        maxScore = score;
+        headerIdx = i;
       }
+    }
+  }
+
+  // If still no header found, allow file to upload with preview
+  if (headerIdx === -1) {
+    console.log("[v0] No SR NO or standard header found - showing preview mode");
+    // Return raw data for preview
+    return cleanRows.map((row, idx) => {
+      const obj = {};
+      row.forEach((cell, j) => {
+        obj[`column_${j}`] = cell;
+      });
+      return obj;
     });
-    const maxRateVotes = Math.max(...rateVotes);
-    if (maxRateVotes > 0) {
-      genericRateColIdx = rateVotes.indexOf(maxRateVotes);
-    }
   }
 
-  // Last resort fallbacks
-  if (nameColIdx === -1) {
-    const firstRow = cleanRows.find(r => r.some(cell => isNaN(parseFloat(cell))));
-    if (firstRow) {
-      nameColIdx = firstRow.findIndex(cell => isNaN(parseFloat(cell)) && String(cell).trim().length > 2);
-    }
-  }
-  if (ssRateColIdx === -1 && distRateColIdx === -1 && genericRateColIdx === -1) {
-    const firstRow = cleanRows.find(r => r.some(cell => !isNaN(parseFloat(cell))));
-    if (firstRow) {
-      genericRateColIdx = firstRow.findIndex(cell => !isNaN(parseFloat(cell)) && parseFloat(cell) > 5);
-    }
-  }
+  // Step 3: Dynamic column mapping based on header row
+  const headerRow = cleanRows[headerIdx];
+  
+  let nameColIdx = -1;
+  let catColIdx = -1;
+  let qtyColIdx = -1;
+  let rateColIdx = -1;
+  let amountColIdx = -1;
 
-  if (nameColIdx === -1) return null;
+  // Map columns dynamically based on header
+  headerRow.forEach((cell, j) => {
+    const c = cell.toLowerCase().trim();
+    
+    if (nameColIdx === -1 && (c === "product name" || c === "product" || c === "name" || c === "particulars")) {
+      nameColIdx = j;
+    }
+    if (catColIdx === -1 && (c === "category" || c === "cat" || c === "group" || c === "type")) {
+      catColIdx = j;
+    }
+    if (qtyColIdx === -1 && (c === "quantity" || c === "qty" || c === "volume" || c === "ml")) {
+      qtyColIdx = j;
+    }
+    if (rateColIdx === -1 && (c === "rate" || c === "price" || c === "ss rate" || c === "dist rate" || c === "mrp")) {
+      rateColIdx = j;
+    }
+    if (amountColIdx === -1 && (c === "amount" || c === "total" || c === "value" || c === "cost")) {
+      amountColIdx = j;
+    }
+  });
 
-  // Build headers — use maxCols so columns beyond the first row are included
+  // Build headers dynamically from the header row
   const headers = Array(maxCols).fill("");
   for (let j = 0; j < maxCols; j++) {
     if (j === nameColIdx) headers[j] = "product name";
     else if (j === catColIdx) headers[j] = "category";
-    else if (j === mlColIdx) headers[j] = "ml";
-    else if (j === ssRateColIdx) headers[j] = "ss rate";
-    else if (j === distRateColIdx) headers[j] = "dist rate";
-    else if (j === genericRateColIdx) headers[j] = "rate";
-    else if (headerIdx !== -1 && cleanRows[headerIdx][j]) {
-      headers[j] = String(cleanRows[headerIdx][j]).toLowerCase().trim().replace(/['"]/g, "");
+    else if (j === qtyColIdx) headers[j] = "quantity";
+    else if (j === rateColIdx) headers[j] = "rate";
+    else if (j === amountColIdx) headers[j] = "amount";
+    else if (headerRow[j]) {
+      headers[j] = String(headerRow[j]).toLowerCase().trim().replace(/['"]/g, "");
     } else {
       headers[j] = `column_${j}`;
     }
   }
 
+  // Step 4: Read all rows after header until end
   const parsed = [];
-  const startRowIdx = headerIdx !== -1 ? headerIdx + 1 : 0;
+  const startRowIdx = headerIdx + 1;
 
   for (let i = startRowIdx; i < cleanRows.length; i++) {
     const row = cleanRows[i];
-    if (row.length <= nameColIdx) continue;
+    
+    // Skip completely empty rows
+    if (!row.some(Boolean)) continue;
 
     const rowData = {};
     for (let j = 0; j < headers.length; j++) {
@@ -570,13 +513,14 @@ function parseRawSheetData(rows) {
       }
     }
 
+    // Only include if it has a product name
     const nameVal = rowData["product name"];
-    if (nameVal && nameVal.trim()) {
+    if (nameVal && nameVal.trim() && nameVal.toLowerCase() !== "sr no") {
       parsed.push(rowData);
     }
   }
 
-  return parsed;
+  return parsed.length > 0 ? parsed : null;
 }
 
 function parseUploadedCSV(text) {
@@ -691,8 +635,11 @@ function Btn({children,onClick,variant="primary",disabled=false,small=false,styl
 // LOGIN PAGE
 // ============================================================
 function LoginPage({onLogin}){
+  const [tab,setTab]=useState("login"); // "login" or "signup"
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
+  const [name,setName]=useState("");
+  const [phone,setPhone]=useState("");
   const [err,setErr]=useState("");
   const [showPass,setShowPass]=useState(false);
 
@@ -709,6 +656,33 @@ function LoginPage({onLogin}){
     else setErr("Invalid credentials or account disabled.");
   }
 
+  function doSignup(){
+    if(!email||!password||!name||!phone){
+      setErr("All fields are required.");
+      return;
+    }
+    if(DB.findOne("users",{email})){
+      setErr("Email already registered.");
+      return;
+    }
+    if(phone.length<10){
+      setErr("Please enter a valid contact number.");
+      return;
+    }
+    // Create new user account
+    const newUser=DB.insert("users",{
+      name,email,password,phone,
+      role:"retailer", // Default to retailer for new signups
+      status:"active",
+      district:"Nagpur",
+      ssId:null,
+      distId:null,
+      createdAt:Date.now()
+    });
+    setErr("");
+    onLogin(newUser);
+  }
+
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0D1B6E 0%,#3F51B5 50%,#7B1FA2 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Poppins','Segoe UI',sans-serif"}}>
       <div style={{width:"100%",maxWidth:460}}>
@@ -718,35 +692,77 @@ function LoginPage({onLogin}){
           <p style={{color:"rgba(255,255,255,0.65)",margin:"4px 0 0",fontSize:13}}>Order Management System</p>
         </div>
         <div style={{background:"white",borderRadius:20,padding:30,boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-          <h2 style={{margin:"0 0 22px",fontSize:19,fontWeight:700,color:"#1A237E"}}>Sign In</h2>
-          <div style={{marginBottom:14}}>
-            <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Email Address</label>
-            <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter email" type="email" className="modern-input"
-              style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          {/* Tab Buttons */}
+          <div style={{display:"flex",gap:10,marginBottom:22,borderBottom:"2px solid #F0F0F0",paddingBottom:14}}>
+            <button onClick={()=>{setTab("login");setErr("");}} style={{padding:"8px 16px",background:tab==="login"?"#1A237E":"transparent",color:tab==="login"?"white":"#888",border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:14}}>Sign In</button>
+            <button onClick={()=>{setTab("signup");setErr("");}} style={{padding:"8px 16px",background:tab==="signup"?"#1A237E":"transparent",color:tab==="signup"?"white":"#888",border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:14}}>Create Account</button>
           </div>
-          <div style={{marginBottom:18}}>
-            <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Password</label>
-            <div style={{position:"relative"}}>
-              <input value={password} onChange={e=>setPassword(e.target.value)} type={showPass?"text":"password"} placeholder="Enter password" className="modern-input"
-                style={{width:"100%",padding:"10px 38px 10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-              <button onClick={()=>setShowPass(!showPass)} type="button" style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:17}}>
-                {showPass?"🙈":"👁"}
-              </button>
-            </div>
-          </div>
-          {err&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"8px 12px",borderRadius:8,fontSize:12,marginBottom:12}}>{err}</div>}
-          <Btn onClick={()=>doLogin(email,password)} style={{width:"100%",padding:"12px",fontSize:14}}>Sign In →</Btn>
-          <div style={{marginTop:22,borderTop:"1px solid #F0F0F0",paddingTop:18}}>
-            <p style={{fontSize:11,color:"#888",textAlign:"center",margin:"0 0 10px"}}>Quick demo access:</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-              {demos.map(d=>(
-                <button key={d.label} onClick={()=>{setEmail(d.email);setPassword(d.pass);doLogin(d.email,d.pass);}}
-                  style={{padding:"7px 10px",background:"#F3F4F6",border:"1px solid #E5E7EB",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:600,color:"#374151"}}>
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
+
+          {tab==="login"?(
+            <>
+              <h2 style={{margin:"0 0 22px",fontSize:19,fontWeight:700,color:"#1A237E"}}>Sign In</h2>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Email Address</label>
+                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter email" type="email" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:18}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Password</label>
+                <div style={{position:"relative"}}>
+                  <input value={password} onChange={e=>setPassword(e.target.value)} type={showPass?"text":"password"} placeholder="Enter password" className="modern-input"
+                    style={{width:"100%",padding:"10px 38px 10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  <button onClick={()=>setShowPass(!showPass)} type="button" style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:17}}>
+                    {showPass?"🙈":"👁"}
+                  </button>
+                </div>
+              </div>
+              {err&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"8px 12px",borderRadius:8,fontSize:12,marginBottom:12}}>{err}</div>}
+              <Btn onClick={()=>doLogin(email,password)} style={{width:"100%",padding:"12px",fontSize:14}}>Sign In →</Btn>
+              <div style={{marginTop:22,borderTop:"1px solid #F0F0F0",paddingTop:18}}>
+                <p style={{fontSize:11,color:"#888",textAlign:"center",margin:"0 0 10px"}}>Quick demo access:</p>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                  {demos.map(d=>(
+                    <button key={d.label} onClick={()=>{setEmail(d.email);setPassword(d.pass);doLogin(d.email,d.pass);}}
+                      style={{padding:"7px 10px",background:"#F3F4F6",border:"1px solid #E5E7EB",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:600,color:"#374151"}}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ):(
+            <>
+              <h2 style={{margin:"0 0 22px",fontSize:19,fontWeight:700,color:"#1A237E"}}>Create Account</h2>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Full Name</label>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="Enter your name" type="text" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Email Address</label>
+                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter email" type="email" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Contact Number</label>
+                <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="10-digit number" type="tel" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:18}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Password</label>
+                <div style={{position:"relative"}}>
+                  <input value={password} onChange={e=>setPassword(e.target.value)} type={showPass?"text":"password"} placeholder="Create password" className="modern-input"
+                    style={{width:"100%",padding:"10px 38px 10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  <button onClick={()=>setShowPass(!showPass)} type="button" style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:17}}>
+                    {showPass?"🙈":"👁"}
+                  </button>
+                </div>
+              </div>
+              {err&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"8px 12px",borderRadius:8,fontSize:12,marginBottom:12}}>{err}</div>}
+              <Btn onClick={doSignup} style={{width:"100%",padding:"12px",fontSize:14}}>Create Account →</Btn>
+              <p style={{fontSize:11,color:"#999",textAlign:"center",margin:"16px 0 0",lineHeight:"1.6"}}>By signing up, you agree to create a retailer account. Contact us to request distributor or super stockist access.</p>
+            </>
+          )}
         </div>
         <p style={{color:"rgba(255,255,255,0.45)",textAlign:"center",marginTop:14,fontSize:11}}>Cremino's Milk Products LLP · Chhatrapati Sambhajinagar</p>
       </div>
@@ -758,9 +774,9 @@ function LoginPage({onLogin}){
 // SIDEBAR
 // ============================================================
 function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
-  const navMap={
-    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"reports",icon:"📊",label:"Reports"},{id:"notifications",icon:"🔔",label:"Notifications"}],
-    ss:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"reports",icon:"📊",label:"Reports"},{id:"notifications",icon:"🔔",label:"Notifications"}],
+  const items={
+    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"notifications",icon:"🔔",label:"Notifications"}],
+    ss:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     distributor:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     retailer:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
   };
@@ -768,11 +784,11 @@ function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
   const roleLabel={manager:"Manager",ss:"Super Stockist",distributor:"Distributor",retailer:"Retailer"};
 
   return(
-    <div style={{width:"100%",minHeight:"100vh",flexShrink:0,background:"linear-gradient(180deg,#0A1648 0%,#1A237E 50%,#283593 100%)",display:"flex",flexDirection:"column",fontFamily:"'Poppins','Segoe UI',sans-serif"}}>
+    <div style={{width:"100%",height:"100vh",flexShrink:0,background:"linear-gradient(180deg,#0A1648 0%,#1A237E 50%,#283593 100%)",display:"flex",flexDirection:"column",fontFamily:"'Poppins','Segoe UI',sans-serif",overflow:"hidden",position:"fixed",left:0,top:0,zIndex:500}}>
       <div style={{padding:"22px 18px 14px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
           <div style={{width:38,height:38,borderRadius:19,background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🍦</div>
-          <div><div style={{color:"white",fontWeight:800,fontSize:13}}>Scoop Lovers</div><div style={{color:"rgba(255,255,255,0.5)",fontSize:9}}>OMS v2.0</div></div>
+          <div><div style={{color:"white",fontWeight:800,fontSize:13}}>Scoop Lovers</div></div>
         </div>
       </div>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
@@ -782,8 +798,8 @@ function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
           {user.district&&user.district!=="All"&&<div style={{color:"rgba(255,255,255,0.5)",fontSize:10,marginTop:3}}>📍 {user.district}</div>}
         </div>
       </div>
-      <nav style={{flex:1,padding:"10px 10px"}}>
-        {(navMap[role]||[]).map(item=>{
+      <nav style={{flex:1,padding:"10px 10px",overflowY:"auto"}}>
+        {(items[role]||[]).map(item=>{
           const badge=(item.id==="basket"&&cartCount>0)?cartCount:(item.id==="notifications"&&notifCount>0)?notifCount:0;
           return(
             <button key={item.id} onClick={()=>setActive(item.id)} style={{
@@ -925,13 +941,13 @@ function ProductCatalog({role,user,cart,setCart}){
     <div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:18,alignItems:"center"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search products..."
-          style={{flex:1,minWidth:180,padding:"9px 13px",border:"1.5px solid #E0E0E0",borderRadius:9,fontSize:13,outline:"none"}}/>
+          style={{flex:1,minWidth:180,padding:"9px 13px",border:"1.5px solid #E2E8F0",borderRadius:9,fontSize:13,outline:"none",background:"white",color:"#333"}}/>
         <select value={catFilter} onChange={e=>setCatFilter(e.target.value)}
-          style={{padding:"9px 13px",border:"1.5px solid #E0E0E0",borderRadius:9,fontSize:13,background:"white"}}>
+          style={{padding:"9px 13px",border:"1.5px solid #E2E8F0",borderRadius:9,fontSize:13,background:"white",color:"#333",cursor:"pointer"}}>
           <option value="All">All Categories ({products.length})</option>
           {cats.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
-        {cart.length>0&&<div style={{background:"linear-gradient(135deg,#FF6B9D,#FF4081)",color:"white",padding:"6px 14px",borderRadius:20,fontSize:12,fontWeight:800}}>🛒 {cart.length} in basket</div>}
+        {cart.length>0&&<div onClick={()=>setActive("basket")} style={{background:"linear-gradient(135deg,#FF6B9D,#FF4081)",color:"white",padding:"6px 14px",borderRadius:20,fontSize:12,fontWeight:800,cursor:"pointer"}}>🛒 {cart.length} in basket</div>}
       </div>
 
       {Object.entries(grouped).map(([cat,items])=>(
@@ -983,10 +999,10 @@ function ProductCatalog({role,user,cart,setCart}){
             <div style={{marginBottom:14}}>
               <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:6}}>Number of Cartons</label>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <button onClick={()=>setQty(Math.max(1,qty-1))} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #DDD",background:"white",cursor:"pointer",fontSize:18}}>−</button>
+                <button onClick={()=>setQty(Math.max(1,qty-1))} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:18,fontWeight:800,color:"#000"}}>−</button>
                 <input type="number" min="1" value={qty} onChange={e=>setQty(Math.max(1,parseInt(e.target.value)||1))}
                   style={{flex:1,textAlign:"center",padding:"8px",border:"1.5px solid #DDD",borderRadius:9,fontSize:15,fontWeight:800}}/>
-                <button onClick={()=>setQty(qty+1)} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #DDD",background:"white",cursor:"pointer",fontSize:18}}>+</button>
+                <button onClick={()=>setQty(qty+1)} style={{width:34,height:34,borderRadius:17,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:18,fontWeight:800,color:"#000"}}>+</button>
               </div>
             </div>
             <div style={{background:"#E8F5E9",borderRadius:10,padding:12,marginBottom:18,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
@@ -1061,9 +1077,9 @@ function Basket({role,user,cart,setCart,onConfirm}){
                     <td style={{padding:"9px 10px",color:"#888"}}>{item.ml}</td>
                     <td style={{padding:"9px 10px"}}>
                       <div style={{display:"flex",alignItems:"center",gap:4}}>
-                        <button onClick={()=>updateQty(item.productId,Math.max(1,item.cartons-1))} style={{width:20,height:20,borderRadius:10,border:"1px solid #DDD",background:"white",cursor:"pointer",fontSize:13,lineHeight:1}}>−</button>
+                        <button onClick={()=>updateQty(item.productId,Math.max(1,item.cartons-1))} style={{width:20,height:20,borderRadius:10,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:14,lineHeight:1,fontWeight:800,color:"#000"}}>−</button>
                         <span style={{width:26,textAlign:"center",fontWeight:800}}>{item.cartons}</span>
-                        <button onClick={()=>updateQty(item.productId,item.cartons+1)} style={{width:20,height:20,borderRadius:10,border:"1px solid #DDD",background:"white",cursor:"pointer",fontSize:13,lineHeight:1}}>+</button>
+                        <button onClick={()=>updateQty(item.productId,item.cartons+1)} style={{width:20,height:20,borderRadius:10,border:"1.5px solid #333",background:"white",cursor:"pointer",fontSize:14,lineHeight:1,fontWeight:800,color:"#000"}}>+</button>
                       </div>
                     </td>
                     <td style={{padding:"9px 10px",color:"#555"}}>{item.cartons*item.unitInCrate}</td>
@@ -1099,9 +1115,9 @@ function Basket({role,user,cart,setCart,onConfirm}){
                 <div className="mobile-order-item-detail-row">
                   <span className="mobile-order-item-label">Cartons</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    <button onClick={() => updateQty(item.productId, Math.max(1, item.cartons - 1))} style={{ width: 24, height: 24, borderRadius: 12, border: "1px solid #DDD", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    <button onClick={() => updateQty(item.productId, Math.max(1, item.cartons - 1))} style={{ width: 24, height: 24, borderRadius: 12, border: "1.5px solid #333", background: "white", cursor: "pointer", fontSize: 14, fontWeight: 800, color: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                     <span style={{ minWidth: 20, textAlign: "center", fontWeight: 800, fontSize: 13 }}>{item.cartons}</span>
-                    <button onClick={() => updateQty(item.productId, item.cartons + 1)} style={{ width: 24, height: 24, borderRadius: 12, border: "1px solid #DDD", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    <button onClick={() => updateQty(item.productId, item.cartons + 1)} style={{ width: 24, height: 24, borderRadius: 12, border: "1.5px solid #333", background: "white", cursor: "pointer", fontSize: 14, fontWeight: 800, color: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                   </div>
                 </div>
                 <div className="mobile-order-item-detail-row">
@@ -1152,7 +1168,7 @@ function OrdersList({role,user,refreshKey}){
   if(role==="distributor") myOrders=allOrders.filter(o=>o.placedBy===user._id||o.distId===user._id);
   if(role==="retailer") myOrders=allOrders.filter(o=>o.placedBy===user._id);
 
-  const statuses=["All","Draft","Pending","Approved","Processing","Dispatched","Delivered","Cancelled"];
+  const statuses=["All","Draft","Completed"];
   const filtered=filter==="All"?myOrders:myOrders.filter(o=>o.status===filter);
   const sorted=[...filtered].sort((a,b)=>b.createdAt-a.createdAt);
 
@@ -1164,7 +1180,7 @@ function OrdersList({role,user,refreshKey}){
     }
   }
 
-  const nextStatus={Pending:["Approved","Cancelled"],Approved:["Processing","Cancelled"],Processing:["Dispatched"],Dispatched:["Delivered"]};
+  const nextStatus={Draft:["Completed"],Completed:[]};
 
   return(
     <div>
@@ -1330,17 +1346,12 @@ function ManageUsers({role,user,refreshKey,setRefreshKey}){
   const retailList=allUsers.filter(u=>u.role==="retailer");
 
   function submit(){
-    if(!form.name||!form.email||!form.password||!form.phone||!form.district){setMsg("All fields required.");return;}
-    if(DB.findOne("users",{email:form.email})){setMsg("Email already exists.");return;}
-    const newUser={
-      name:form.name,role:modal==="add-ss"?"ss":modal==="add-dist"?"distributor":"retailer",
-      email:form.email,password:form.password,phone:form.phone,district:form.district,status:"active",
-      ssId:modal==="add-dist"?(form.ssId||null):null,
-      distId:null,
-      createdAt:Date.now()
-    };
-    DB.insert("users",newUser);
-    pushNotif("👤","New Account Created",`${newUser.name} (${newUser.role}) account created`,"all");
+    if(!form.email||!form.phone){setMsg("Email and phone are required.");return;}
+    const foundUser=allUsers.find(u=>u.email===form.email&&u.phone===form.phone);
+    if(!foundUser){setMsg("No user found with this email and phone combination.");return;}
+    if(modal==="add-ss"&&foundUser.role!=="ss"){setMsg("This user is not registered as a Super Stockist.");return;}
+    if(modal==="add-dist"&&foundUser.role!=="distributor"){setMsg("This user is not registered as a Distributor.");return;}
+    pushNotif("✅","User Added",`${foundUser.name} (${foundUser.role}) has been verified and added`,"all");
     setModal(null);setForm({});setMsg("");
     setRefreshKey(k=>k+1);
   }
@@ -1400,28 +1411,19 @@ function ManageUsers({role,user,refreshKey,setRefreshKey}){
       </Card>
 
       <Modal open={!!modal} onClose={()=>{setModal(null);setMsg("");}} title={modal==="add-ss"?"Add Super Stockist":"Add Distributor"}>
-        {["name","email","password","phone","district"].map(field=>(
+        <p style={{fontSize:12,color:"#666",marginBottom:15}}>Enter the email and phone number used during registration:</p>
+        {["email","phone"].map(field=>(
           <div key={field} style={{marginBottom:13}}>
             <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5,textTransform:"capitalize"}}>{field}</label>
-            <input value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} type={field==="password"?"password":"text"}
+            <input value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} type={field==="email"?"email":"tel"}
               placeholder={`Enter ${field}`} className="modern-input"
               style={{width:"100%",padding:"9px 12px",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
           </div>
         ))}
-        {modal==="add-dist"&&(
-          <div style={{marginBottom:13}}>
-            <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Under Super Stockist</label>
-            <select value={form.ssId||""} onChange={e=>setForm(f=>({...f,ssId:e.target.value}))}
-              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #E0E0E0",borderRadius:8,fontSize:13,background:"white"}}>
-              <option value="">-- Select SS --</option>
-              {ssList.filter(s=>s.status==="active").map(s=><option key={s._id} value={s._id}>{s.name} ({s.district})</option>)}
-            </select>
-          </div>
-        )}
         {msg&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"7px 11px",borderRadius:7,fontSize:12,marginBottom:12}}>{msg}</div>}
         <div style={{display:"flex",gap:9}}>
           <Btn variant="secondary" onClick={()=>{setModal(null);setMsg("");}} style={{flex:1}}>Cancel</Btn>
-          <Btn onClick={submit} style={{flex:2}}>✅ Create Account</Btn>
+          <Btn onClick={submit} style={{flex:2}}>✅ Verify & Add</Btn>
         </div>
       </Modal>
     </div>
@@ -1472,10 +1474,17 @@ function UploadRateSheet({setRefreshKey}){
         setPreview([]);
         return;
       }
-      const updated=parsed.slice(0,10); // preview first 10
+      const updated=parsed; // show ALL rows, not just 10
       setPreview(updated);
       setStatus(`✅ Parsed ${parsed.length} rows. Review below then click Apply.`);
       window._parsedRates=parsed;
+      // Store metadata about the rate sheet
+      window._rateSheetMetadata={
+        type:uploadType,
+        fileName:file.name,
+        uploadedAt:new Date().toLocaleString(),
+        totalRows:parsed.length
+      };
     };
 
     if (isXlsx) {
@@ -1590,7 +1599,7 @@ function UploadRateSheet({setRefreshKey}){
           <div style={{fontSize:44,marginBottom:10}}>📂</div>
           <p style={{margin:0,fontWeight:700,color:"#1A237E",fontSize:14}}>Drop Excel (.xlsx, .xls) or CSV file here or click to browse</p>
           <p style={{margin:"6px 0 0",color:"#AAA",fontSize:12}}>Uploading as: <strong>{uploadType === "ss" ? "Super Stockist (SS) Rates" : "Distributor Rates"}</strong></p>
-          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.txt" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
+          <input ref={fileRef} type="file" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
         </div>
       </Card>
 
@@ -1623,12 +1632,22 @@ e.g. Big Cup, Vanilla, 171.02`
       {preview.length>0&&(
         <Card style={{marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:"#1A237E"}}>Preview (first 10 rows)</h3>
+            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:"#1A237E"}}>Preview - All {preview.length} rows loaded</h3>
             <Btn onClick={applyRates}>✅ Apply Rates</Btn>
           </div>
-          <div style={{overflowX:"auto"}}>
+          {window._rateSheetMetadata&&(
+            <div style={{background:"#E8F5E9",borderRadius:8,padding:"10px 12px",marginBottom:12,fontSize:11}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
+                <div><strong style={{color:"#1B5E20"}}>File:</strong> {window._rateSheetMetadata.fileName}</div>
+                <div><strong style={{color:"#1B5E20"}}>Type:</strong> {window._rateSheetMetadata.type === "ss" ? "Super Stockist (SS)" : "Distributor"} Rates</div>
+                <div><strong style={{color:"#1B5E20"}}>Uploaded:</strong> {window._rateSheetMetadata.uploadedAt}</div>
+                <div><strong style={{color:"#1B5E20"}}>Rows:</strong> {window._rateSheetMetadata.totalRows}</div>
+              </div>
+            </div>
+          )}
+          <div style={{overflowX:"auto",maxHeight:"400px",overflowY:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-              <thead><tr style={{background:"#F0F0F0"}}>
+              <thead style={{position:"sticky",top:0}}><tr style={{background:"#F0F0F0"}}>
                 {Object.keys(preview[0]).slice(0,8).map(h=><th key={h} style={{padding:"7px 9px",textAlign:"left",fontWeight:700,color:"#555"}}>{h}</th>)}
               </tr></thead>
               <tbody>{preview.map((row,i)=>(
@@ -1640,52 +1659,6 @@ e.g. Big Cup, Vanilla, 171.02`
           </div>
         </Card>
       )}
-    </div>
-  );
-}
-
-// ============================================================
-// REPORTS
-// ============================================================
-function Reports({role,user}){
-  const orders=DB.getAll("orders");
-  const myOrders=role==="manager"?orders:orders.filter(o=>o.placedBy===user._id);
-  const revenue=myOrders.reduce((s,o)=>s+o.grandTotal,0);
-
-  const catSales={};
-  myOrders.forEach(o=>o.items.forEach(item=>{catSales[item.category]=(catSales[item.category]||0)+item.amount;}));
-  const topCats=Object.entries(catSales).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-  return(
-    <div>
-      <h2 style={{margin:"0 0 20px",fontSize:20,fontWeight:800,color:"#1A237E"}}>📊 Reports & Analytics</h2>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:14,marginBottom:22}}>
-        <StatCard icon="💰" label="Total Revenue" value={"₹"+revenue.toFixed(0)} color="#2E7D32"/>
-        <StatCard icon="📋" label="Total Orders" value={myOrders.length} color="#1565C0"/>
-        <StatCard icon="✅" label="Delivered" value={myOrders.filter(o=>o.status==="Delivered").length} color="#00897B"/>
-        <StatCard icon="⏳" label="Pending" value={myOrders.filter(o=>o.status==="Pending").length} color="#F57F17"/>
-      </div>
-      {topCats.length>0&&(
-        <Card>
-          <h3 style={{margin:"0 0 18px",fontSize:15,fontWeight:700,color:"#1A237E"}}>Sales by Category</h3>
-          {topCats.map(([cat,amt])=>{
-            const pct=revenue>0?(amt/revenue)*100:0;
-            const color=CAT_COLOR[cat]||"#4FC3F7";
-            return(
-              <div key={cat} style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{fontSize:12,fontWeight:700}}>{CAT_EMOJI[cat]||"🍦"} {cat}</span>
-                  <span style={{fontSize:12,fontWeight:800,color:"#1A237E"}}>₹{amt.toFixed(0)}</span>
-                </div>
-                <div style={{height:7,background:"#F0F0F0",borderRadius:4,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:pct+"%",background:color,borderRadius:4}}/>
-                </div>
-              </div>
-            );
-          })}
-        </Card>
-      )}
-      {myOrders.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:"#CCC"}}><div style={{fontSize:42}}>📊</div><p>No data yet</p></div>}
     </div>
   );
 }
@@ -1731,18 +1704,64 @@ export default function App(){
   function handleLogin(u){setUser(u);setActive("dashboard");}
   function handleLogout(){setUser(null);setCart([]);setActive("dashboard");}
 
+  function generateOrderExcel(orderId,cartItems,role){
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet([]);
+    const data = [];
+    
+    // Add header info
+    data.push([`Order #${orderId}`]);
+    data.push([`Generated: ${new Date().toLocaleString()}`]);
+    data.push([]);
+    
+    // Add column headers
+    data.push(["SR NO","Product Name","Category","ML","Cartons","Unit/Crate","Pieces","Rate","Amount"]);
+    
+    // Add items with formulas
+    cartItems.forEach((item,idx)=>{
+      const rate = role==="distributor"||role==="retailer"?item.distRate:item.ssRate;
+      // Row data: SR, Product, Cat, ML, Cartons, Unit, Pieces (formula), Rate, Amount (formula)
+      data.push([
+        idx+1,
+        item.name,
+        item.category,
+        item.ml,
+        item.cartons,
+        item.unitInCrate,
+        `=E${data.length+1}*F${data.length+1}`, // Pieces = Cartons * Unit/Crate
+        rate,
+        `=G${data.length+1}*H${data.length+1}` // Amount = Pieces * Rate
+      ]);
+    });
+    
+    data.push([]);
+    data.push(["","","","","TOTAL:","",`=SUM(G${data.length+1-cartItems.length}:G${data.length})`,`GRAND TOTAL:`,`=SUM(I${data.length+1-cartItems.length}:I${data.length})`]);
+    
+    // Convert to sheet
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:8},{wch:20},{wch:15},{wch:8},{wch:10},{wch:12},{wch:10},{wch:12},{wch:12}];
+    
+    XLSX.utils.book_append_sheet(workbook, ws, "Order");
+    XLSX.writeFile(workbook, `Order_${orderId}.xlsx`);
+  }
+
   function confirmOrder(cartItems,grandTotal){
     const u=user;
     const parentSS=u.role==="distributor"?DB.findOne("users",{_id:u.ssId}):u.role==="ss"?u:null;
+    const orderId = genOrderId();
     const order=DB.insert("orders",{
-      id:genOrderId(),
+      id:orderId,
       placedBy:u._id, placedByName:u.name, role:u.role,
       ssId:u.role==="ss"?u._id:(u.ssId||null),
       distId:u.role==="distributor"?u._id:null,
       district:u.district||"Nagpur",
       items:cartItems.map(i=>({...i})),
-      grandTotal,status:"Pending",createdAt:Date.now()
+      grandTotal,status:"Draft",createdAt:Date.now(),
+      excelFileName:`Order_${orderId}.xlsx`, // Track the Excel filename
+      rateSheetUsed:window._rateSheetMetadata // Store which rate sheet was used
     });
+    // Generate Excel file with formulas
+    generateOrderExcel(orderId,cartItems,u.role);
     pushNotif("✅","Order Placed",`Order ${order.id} placed for ₹${grandTotal.toFixed(2)} by ${u.name}`,u._id);
     if(parentSS) pushNotif("📦","New Order Received",`${u.name} placed order ${order.id} worth ₹${grandTotal.toFixed(2)}`,parentSS._id);
     setCart([]);setActive("orders");setRefreshKey(k=>k+1);
@@ -1760,14 +1779,13 @@ export default function App(){
     orders:<OrdersList role={role} user={user} refreshKey={refreshKey}/>,
     users:<ManageUsers role={role} user={user} refreshKey={refreshKey} setRefreshKey={setRefreshKey}/>,
     upload:<UploadRateSheet setRefreshKey={setRefreshKey}/>,
-    reports:<Reports role={role} user={user}/>,
     notifications:<Notifications user={user} refreshKey={refreshKey}/>,
   };
 
   return(
     <div className="app-container">
       {/* Desktop Sidebar */}
-      <div className="desktop-only" style={{ width: 216, minHeight: "100vh", flexShrink: 0 }}>
+      <div className="desktop-only" style={{ width: 160, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
         <Sidebar role={role} user={user} active={active} setActive={setActive} onLogout={handleLogout} cartCount={cart.length} notifCount={notifCount}/>
       </div>
       
@@ -1791,26 +1809,67 @@ export default function App(){
       </div>
 
       <div className="main-content">
-        {/* Mobile top navbar */}
-        <div className="mobile-header">
-          <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 14, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🍦</div>
-            <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5 }}>Scoop Lovers</span>
+        {/* Desktop top navbar */}
+        <div className="desktop-header desktop-only">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 16, background: "#1A237E", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🍦</div>
+            <span style={{ fontWeight: 800, fontSize: 16, color: "#1A237E" }}>Scoop Lovers</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {role !== "manager" && (
-              <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                🛒
-                {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "center", maxWidth: 400 }}>
+            <input type="text" placeholder="Search products, orders..." style={{ width: "100%", padding: "8px 14px", borderRadius: 8, border: "1.5px solid #E2E8F0", background: "white", color: "#333", fontSize: 13, outline: "none" }} />
+          </div>
+          {user && (
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              {role !== "manager" && (
+                <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                  🛒
+                  {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+                </button>
+              )}
+              <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 20, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                🔔
+                {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
               </button>
-            )}
-            <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "white", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
-              🔔
-              {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
-            </button>
-          </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 10, borderLeft: "1px solid #E2E8F0" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                  <span style={{ fontWeight: 700, color: "#1A237E", fontSize: 13 }}>{user.name}</span>
+                  <span style={{ fontSize: 10, color: "#999", textTransform: "capitalize" }}>{role}</span>
+                </div>
+                <button onClick={handleLogout} style={{ background: "none", border: "none", color: "#999", fontSize: 14, cursor: "pointer", padding: "4px 8px" }}>⊗</button>
+              </div>
+            </div>
+          )}
         </div>
+        
+        {/* Mobile top navbar */}
+        {user && (
+          <div className="mobile-header">
+            <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginLeft: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 14, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🍦</div>
+              <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5 }}>Scoop Lovers</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <button onClick={() => setActive("dashboard")} title={user.name} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 8px", borderRadius: 6 }}>👤</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#1A237E", minWidth: 80 }}>
+                <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
+              {role !== "manager" && (
+                <button onClick={() => setActive("basket")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                  🛒
+                  {cart.length > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{cart.length}</span>}
+                </button>
+              )}
+              <button onClick={() => setActive("notifications")} style={{ background: "none", border: "none", color: "#1A237E", fontSize: 18, position: "relative", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                🔔
+                {notifCount > 0 && <span style={{ position: "absolute", top: -6, right: -8, background: "#FF6B9D", color: "white", fontSize: 8, fontWeight: 900, borderRadius: 8, padding: "1px 5px" }}>{notifCount}</span>}
+              </button>
+              <button onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}} style={{ background: "none", border: "none", color: "#FF6B9D", fontSize: 14, cursor: "pointer", padding: "4px 8px", borderRadius: 4, fontWeight: 600 }}>Exit</button>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Area */}
         <div style={{ flex: 1, overflow: "auto" }}>

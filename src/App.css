@@ -21,6 +21,13 @@ button, input, select, textarea {
   min-height: 100vh;
   background: #F8F9FD;
   width: 100%;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    display: block;
+  }
 }
 
 .main-content {
@@ -28,6 +35,16 @@ button, input, select, textarea {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  margin-left: 160px;
+  width: 100%;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 .page-container {
@@ -40,7 +57,14 @@ button, input, select, textarea {
 
 @media (max-width: 768px) {
   .page-container {
-    padding: 16px 14px;
+    padding: 14px 12px;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    padding: 12px 10px;
   }
 }
 
@@ -61,19 +85,43 @@ button, input, select, textarea {
   }
 }
 
+/* Desktop Top Navbar */
+.desktop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: white;
+  border-bottom: 1.5px solid #E2E8F0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .desktop-header {
+    display: none !important;
+  }
+}
+
 /* Mobile Top Navbar */
 .mobile-header {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #0A1648 0%, #1A237E 100%);
-  color: white;
+  padding: 12px 12px;
+  background: white;
+  color: #1A237E;
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   box-sizing: border-box;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1.5px solid #E2E8F0;
 }
 
 @media (max-width: 768px) {
@@ -85,7 +133,7 @@ button, input, select, textarea {
 .hamburger-btn {
   background: none;
   border: none;
-  color: white;
+  color: #1A237E;
   font-size: 24px;
   cursor: pointer;
   display: flex;
@@ -167,10 +215,24 @@ button, input, select, textarea {
   gap: 12px;
 }
 
+@media (max-width: 768px) {
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+}
+
 @media (max-width: 540px) {
   .catalog-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .catalog-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
 
@@ -262,6 +324,17 @@ button, input, select, textarea {
 .modern-input:focus {
   border-color: #1A237E !important;
   box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.15) !important;
+}
+
+/* Navbar search input */
+.mobile-header input[type="text"] {
+  transition: all 0.2s ease !important;
+  border: 1.5px solid #E2E8F0 !important;
+  background: #F8F9FD !important;
+  color: #333 !important;
+}
+.mobile-header input[type="text"]::placeholder {
+  color: #999;
 }
 
 /* Custom scrollbars for modal and tables */
