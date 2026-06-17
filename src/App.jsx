@@ -635,8 +635,11 @@ function Btn({children,onClick,variant="primary",disabled=false,small=false,styl
 // LOGIN PAGE
 // ============================================================
 function LoginPage({onLogin}){
+  const [tab,setTab]=useState("login"); // "login" or "signup"
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
+  const [name,setName]=useState("");
+  const [phone,setPhone]=useState("");
   const [err,setErr]=useState("");
   const [showPass,setShowPass]=useState(false);
 
@@ -653,6 +656,33 @@ function LoginPage({onLogin}){
     else setErr("Invalid credentials or account disabled.");
   }
 
+  function doSignup(){
+    if(!email||!password||!name||!phone){
+      setErr("All fields are required.");
+      return;
+    }
+    if(DB.findOne("users",{email})){
+      setErr("Email already registered.");
+      return;
+    }
+    if(phone.length<10){
+      setErr("Please enter a valid contact number.");
+      return;
+    }
+    // Create new user account
+    const newUser=DB.insert("users",{
+      name,email,password,phone,
+      role:"retailer", // Default to retailer for new signups
+      status:"active",
+      district:"Nagpur",
+      ssId:null,
+      distId:null,
+      createdAt:Date.now()
+    });
+    setErr("");
+    onLogin(newUser);
+  }
+
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0D1B6E 0%,#3F51B5 50%,#7B1FA2 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Poppins','Segoe UI',sans-serif"}}>
       <div style={{width:"100%",maxWidth:460}}>
@@ -662,35 +692,77 @@ function LoginPage({onLogin}){
           <p style={{color:"rgba(255,255,255,0.65)",margin:"4px 0 0",fontSize:13}}>Order Management System</p>
         </div>
         <div style={{background:"white",borderRadius:20,padding:30,boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-          <h2 style={{margin:"0 0 22px",fontSize:19,fontWeight:700,color:"#1A237E"}}>Sign In</h2>
-          <div style={{marginBottom:14}}>
-            <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Email Address</label>
-            <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter email" type="email" className="modern-input"
-              style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          {/* Tab Buttons */}
+          <div style={{display:"flex",gap:10,marginBottom:22,borderBottom:"2px solid #F0F0F0",paddingBottom:14}}>
+            <button onClick={()=>{setTab("login");setErr("");}} style={{padding:"8px 16px",background:tab==="login"?"#1A237E":"transparent",color:tab==="login"?"white":"#888",border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:14}}>Sign In</button>
+            <button onClick={()=>{setTab("signup");setErr("");}} style={{padding:"8px 16px",background:tab==="signup"?"#1A237E":"transparent",color:tab==="signup"?"white":"#888",border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:14}}>Create Account</button>
           </div>
-          <div style={{marginBottom:18}}>
-            <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Password</label>
-            <div style={{position:"relative"}}>
-              <input value={password} onChange={e=>setPassword(e.target.value)} type={showPass?"text":"password"} placeholder="Enter password" className="modern-input"
-                style={{width:"100%",padding:"10px 38px 10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-              <button onClick={()=>setShowPass(!showPass)} type="button" style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:17}}>
-                {showPass?"🙈":"👁"}
-              </button>
-            </div>
-          </div>
-          {err&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"8px 12px",borderRadius:8,fontSize:12,marginBottom:12}}>{err}</div>}
-          <Btn onClick={()=>doLogin(email,password)} style={{width:"100%",padding:"12px",fontSize:14}}>Sign In →</Btn>
-          <div style={{marginTop:22,borderTop:"1px solid #F0F0F0",paddingTop:18}}>
-            <p style={{fontSize:11,color:"#888",textAlign:"center",margin:"0 0 10px"}}>Quick demo access:</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-              {demos.map(d=>(
-                <button key={d.label} onClick={()=>{setEmail(d.email);setPassword(d.pass);doLogin(d.email,d.pass);}}
-                  style={{padding:"7px 10px",background:"#F3F4F6",border:"1px solid #E5E7EB",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:600,color:"#374151"}}>
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
+
+          {tab==="login"?(
+            <>
+              <h2 style={{margin:"0 0 22px",fontSize:19,fontWeight:700,color:"#1A237E"}}>Sign In</h2>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Email Address</label>
+                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter email" type="email" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:18}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Password</label>
+                <div style={{position:"relative"}}>
+                  <input value={password} onChange={e=>setPassword(e.target.value)} type={showPass?"text":"password"} placeholder="Enter password" className="modern-input"
+                    style={{width:"100%",padding:"10px 38px 10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  <button onClick={()=>setShowPass(!showPass)} type="button" style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:17}}>
+                    {showPass?"🙈":"👁"}
+                  </button>
+                </div>
+              </div>
+              {err&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"8px 12px",borderRadius:8,fontSize:12,marginBottom:12}}>{err}</div>}
+              <Btn onClick={()=>doLogin(email,password)} style={{width:"100%",padding:"12px",fontSize:14}}>Sign In →</Btn>
+              <div style={{marginTop:22,borderTop:"1px solid #F0F0F0",paddingTop:18}}>
+                <p style={{fontSize:11,color:"#888",textAlign:"center",margin:"0 0 10px"}}>Quick demo access:</p>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                  {demos.map(d=>(
+                    <button key={d.label} onClick={()=>{setEmail(d.email);setPassword(d.pass);doLogin(d.email,d.pass);}}
+                      style={{padding:"7px 10px",background:"#F3F4F6",border:"1px solid #E5E7EB",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:600,color:"#374151"}}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ):(
+            <>
+              <h2 style={{margin:"0 0 22px",fontSize:19,fontWeight:700,color:"#1A237E"}}>Create Account</h2>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Full Name</label>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="Enter your name" type="text" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Email Address</label>
+                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter email" type="email" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Contact Number</label>
+                <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="10-digit number" type="tel" className="modern-input"
+                  style={{width:"100%",padding:"10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:18}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#555",display:"block",marginBottom:5}}>Password</label>
+                <div style={{position:"relative"}}>
+                  <input value={password} onChange={e=>setPassword(e.target.value)} type={showPass?"text":"password"} placeholder="Create password" className="modern-input"
+                    style={{width:"100%",padding:"10px 38px 10px 13px",borderRadius:9,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  <button onClick={()=>setShowPass(!showPass)} type="button" style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:17}}>
+                    {showPass?"🙈":"👁"}
+                  </button>
+                </div>
+              </div>
+              {err&&<div style={{background:"#FFEBEE",color:"#C62828",padding:"8px 12px",borderRadius:8,fontSize:12,marginBottom:12}}>{err}</div>}
+              <Btn onClick={doSignup} style={{width:"100%",padding:"12px",fontSize:14}}>Create Account →</Btn>
+              <p style={{fontSize:11,color:"#999",textAlign:"center",margin:"16px 0 0",lineHeight:"1.6"}}>By signing up, you agree to create a retailer account. Contact us to request distributor or super stockist access.</p>
+            </>
+          )}
         </div>
         <p style={{color:"rgba(255,255,255,0.45)",textAlign:"center",marginTop:14,fontSize:11}}>Cremino's Milk Products LLP · Chhatrapati Sambhajinagar</p>
       </div>
