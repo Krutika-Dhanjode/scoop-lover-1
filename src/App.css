@@ -21,6 +21,13 @@ button, input, select, textarea {
   min-height: 100vh;
   background: #F8F9FD;
   width: 100%;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    display: block;
+  }
 }
 
 .main-content {
@@ -28,6 +35,16 @@ button, input, select, textarea {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 .page-container {
@@ -40,7 +57,14 @@ button, input, select, textarea {
 
 @media (max-width: 768px) {
   .page-container {
-    padding: 16px 14px;
+    padding: 14px 12px;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    padding: 12px 10px;
   }
 }
 
@@ -191,10 +215,24 @@ button, input, select, textarea {
   gap: 12px;
 }
 
+@media (max-width: 768px) {
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+}
+
 @media (max-width: 540px) {
   .catalog-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .catalog-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
 
