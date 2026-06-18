@@ -775,7 +775,7 @@ function LoginPage({onLogin}){
 // ============================================================
 function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
   const items={
-    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"notifications",icon:"🔔",label:"Notifications"}],
+    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     ss:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     distributor:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     retailer:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
