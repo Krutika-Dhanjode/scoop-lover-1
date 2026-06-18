@@ -775,7 +775,7 @@ function LoginPage({onLogin}){
 // ============================================================
 function Sidebar({role,user,active,setActive,onLogout,cartCount,notifCount}){
   const items={
-    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"notifications",icon:"🔔",label:"Notifications"}],
+    manager:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"All Orders"},{id:"users",icon:"👥",label:"Manage Users"},{id:"upload",icon:"⬆️",label:"Upload Rate Sheet"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     ss:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     distributor:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
     retailer:[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"products",icon:"🍦",label:"Products"},{id:"basket",icon:"🛒",label:"Basket"},{id:"orders",icon:"📋",label:"Orders"},{id:"notifications",icon:"🔔",label:"Notifications"}],
@@ -1785,7 +1785,7 @@ export default function App(){
   return(
     <div className="app-container">
       {/* Desktop Sidebar */}
-      <div className="desktop-only" style={{ width: 160, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
+      <div className="desktop-only" style={{ width: 100, height: "100vh", flexShrink: 0, position: "fixed", left: 0, top: 0, zIndex: 500 }}>
         <Sidebar role={role} user={user} active={active} setActive={setActive} onLogout={handleLogout} cartCount={cart.length} notifCount={notifCount}/>
       </div>
       
